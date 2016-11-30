@@ -4,7 +4,7 @@
 
 source "drivers/external_drivers/camera/drivers/media/i2c/mt9e013/Kconfig"
 source "drivers/external_drivers/camera/drivers/media/i2c/ov5693/Kconfig"
-source "drivers/external_drivers/camera/drivers/media/i2c/imx/Kconfig"
+# source "drivers/external_drivers/camera/drivers/media/i2c/imx/Kconfig"
 source "drivers/external_drivers/camera/drivers/media/i2c/imx135VB/Kconfig"
 
 config VIDEO_OV9724
@@ -18,16 +18,27 @@ config VIDEO_OV9724
 
          It currently only works with the atomisp driver.
 
-config VIDEO_OV2722
-       tristate "OVT ov2722 sensor support"
+config VIDEO_OV9760
+       tristate "OVT ov9760 sensor support"
        depends on I2C && VIDEO_V4L2
        ---help---
          This is a Video4Linux2 sensor-level driver for the OVT
-         OV2722 raw camera.
+         OV9760 raw camera.
 
-         OVT is a 2M raw sensor.
+         OVT is a 1.6MP raw sensor.
 
          It currently only works with the atomisp driver.
+	 
+# config VIDEO_OV2722
+#       tristate "OVT ov2722 sensor support"
+#       depends on I2C && VIDEO_V4L2
+#       ---help---
+#         This is a Video4Linux2 sensor-level driver for the OVT
+#         OV2722 raw camera.
+#
+#         OVT is a 2M raw sensor.
+#
+#         It currently only works with the atomisp driver.
 
 config VIDEO_M10MO
 	tristate "Fujitsu M10MO driver"
@@ -66,6 +77,16 @@ config VIDEO_OV8830
 
          It currently only works with the atomisp driver.
 
+config VIDEO_OV8865
+       tristate "OVT ov8865 sensor support"
+       depends on I2C && VIDEO_V4L2
+       ---help---
+         This is a Video4Linux2 sensor-level driver for the OVT
+         OV8865 raw camera.
+         OVT is a 8MP raw sensor.
+
+         It currently only works with the atomisp driver.
+	 
 config VIDEO_OV8858
        tristate "Omnivision ov8858 sensor support"
        depends on I2C && VIDEO_V4L2 && VIDEO_ATOMISP
@@ -237,4 +258,11 @@ config VIDEO_LM3559
          To compile this driver as a module, choose M here: the
          module will be called lm3559
 
-
+#config VIDEO_SY7802
+#       tristate "sy7802 flash light driver"
+#       depends on VIDEO_V4L2 && I2C
+#       ---help---
+#         This is a Video4Linux2 sub-dev driver for the SY7802
+#         flash light driver.
+#         To compile this driver as a module, choose M here: the
+#         module will be called sy7802

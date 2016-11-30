@@ -22,6 +22,8 @@ obj-$(CONFIG_VIDEO_GC2235)     += gc2235.o
 obj-$(CONFIG_VIDEO_OV9724)     += ov9724.o
 obj-$(CONFIG_VIDEO_OV2722)     += ov2722.o
 obj-$(CONFIG_VIDEO_OV8830)     += ov8830.o
+obj-$(CONFIG_VIDEO_OV8865)     += ov8865.o
+obj-$(CONFIG_VIDEO_OV9760)     += ov9760.o
 
 obj-$(CONFIG_VIDEO_S5K8AAY)    += s5k8aay.o
 obj-$(CONFIG_VIDEO_S5K6B2YX)    += s5k6b2yx.o
@@ -49,6 +51,7 @@ obj-$(CONFIG_VIDEO_PIXTER) += pixter.o
 
 obj-$(CONFIG_VIDEO_LM3554) += lm3554.o
 obj-$(CONFIG_VIDEO_LM3559) += lm3559.o
+obj-$(CONFIG_VIDEO_SY7802) += sy7802.o
 obj-$(CONFIG_VIDEO_LM3642) += lm3642.o
 
 ccflags-y += -Werror
