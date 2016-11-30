@@ -801,10 +801,10 @@
 /* Power Management for Analog 2 (0x64) */
 #define RT5640_PWR_BST1			(0x1 << 15)
 #define RT5640_PWR_BST1_BIT			15
-#define RT5640_PWR_BST2			(0x1 << 14)
-#define RT5640_PWR_BST2_BIT			14
-#define RT5640_PWR_BST3			(0x1 << 13)
-#define RT5640_PWR_BST3_BIT			13
+#define RT5640_PWR_BST2			(0x1 << 12)
+#define RT5640_PWR_BST2_BIT			12
+#define RT5640_PWR_BST3			(0x1 << 14)
+#define RT5640_PWR_BST3_BIT			14
 #define RT5640_PWR_BST4			(0x1 << 12)
 #define RT5640_PWR_BST4_BIT			12
 #define RT5640_PWR_MB1				(0x1 << 11)
@@ -2073,7 +2073,7 @@ enum {
 
 /* Volume Rescale */
 #define RT5640_VOL_RSCL_MAX 0x27
-#define RT5640_VOL_RSCL_RANGE 0x1F
+#define RT5640_VOL_RSCL_RANGE 0x27
 /* Debug String Length */
 #define RT5640_REG_DISP_LEN 23
 

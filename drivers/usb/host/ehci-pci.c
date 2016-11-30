@@ -317,6 +317,13 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 			pm_runtime_set_active(&pdev->dev);
 #endif
 		} else if (pdev->device == 0x119D) {
+#ifndef CONFIG_MDM_CTRL
+			/* disable HSIC controller */
+			pr_info("%s,disable HSIC\n", __func__);
+			pci_set_power_state(pdev, PCI_D3cold);
+			return -ENODEV;
+#endif
+
 			ehci_info(ehci, "Detected HSIC HC\n");
 			hcd->has_tt = 1;
 			ehci->has_hostpc = 1;

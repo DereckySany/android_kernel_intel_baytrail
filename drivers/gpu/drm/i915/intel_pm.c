@@ -36,7 +36,7 @@
 #include <psb_powermgmt.h>
 #include <linux/early_suspend_sysfs.h>
 
-static struct drm_device *gdev;
+struct drm_device *gdev;//lm for other file reference
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	#include <linux/earlysuspend.h>

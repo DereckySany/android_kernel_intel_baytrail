@@ -9,5 +9,6 @@ enum {
 };
 
 void lnw_gpio_set_alt(int gpio, int alt);
+void lnw_gpio_set_pininfo(unsigned int gpio, unsigned int type, const char *info);
 
 #endif

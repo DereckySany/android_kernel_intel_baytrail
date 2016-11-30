@@ -19,7 +19,8 @@
 #include "otg.h"
 
 #define VERSION "2.10a"
-
+#define  USB_EN    148
+#define  USB_MUX   2
 static int otg_id = -1;
 static struct wake_lock wakelock;
 static int enable_usb_phy(struct dwc_otg2 *otg, bool on_off);
@@ -282,6 +283,15 @@ static irqreturn_t dwc3_gpio_id_irq(int irq, void *dev)
 	data = (struct intel_dwc_otg_pdata *)otg->otg_data;
 
 	id = dwc3_check_gpio_id(otg);
+	gpio_request(USB_EN,"usb_en");
+	if(id==1)	
+	{	
+			 gpio_direction_output(USB_EN, 0);	
+	 }	
+	 else	
+	 {	
+			gpio_direction_output(USB_EN, 1);	
+	}
 	if (id == 0 || id == 1) {
 		if (data->id != id) {
 			data->id = id;
@@ -412,8 +422,21 @@ int dwc3_intel_byt_platform_init(struct dwc_otg2 *otg)
 		}
 
 		otg_dbg(otg, "GPIO ID request/Interrupt reuqest Done\n");
+		  retval=gpio_request(USB_EN,"USB_EN");	
+			if(retval<0)	
+			 {	
+			 otg_err(otg, "failed to request USB_EN :148 \n");	
+			 }
 
 		id_value = dwc3_check_gpio_id(otg);
+		 if(id_value==1)	
+		 {	
+			 gpio_direction_output(USB_EN, 0);	
+		}	
+		else	
+		{	
+			gpio_direction_output(USB_EN, 1);	
+        }
 		if ((id_value == 0 || id_value == 1) &&
 					(data->id != id_value)) {
 			data->id = id_value;
@@ -451,7 +474,8 @@ int dwc3_intel_byt_platform_init(struct dwc_otg2 *otg)
 	gctl = otg_read(otg, GCTL);
 	gctl |= GCTL_PRT_CAP_DIR_OTG << GCTL_PRT_CAP_DIR_SHIFT;
 	otg_write(otg, GCTL, gctl);
-
+	gpio_request(USB_MUX,"usb_mux");
+	gpio_direction_output(USB_MUX, 0);
 	return 0;
 }
 
@@ -496,7 +520,9 @@ static int enable_usb_phy(struct dwc_otg2 *otg, bool on_off)
 int dwc3_intel_byt_get_id(struct dwc_otg2 *otg)
 {
 	/* For BYT ID is not connected to USB, always FLOAT */
-	return RID_FLOAT;
+	struct intel_dwc_otg_pdata *data;
+	data = (struct intel_dwc_otg_pdata *)otg->otg_data;
+	return data->id ? RID_FLOAT : RID_GND;
 }
 
 int dwc3_intel_byt_b_idle(struct dwc_otg2 *otg)
@@ -695,7 +721,8 @@ static int dwc3_intel_byt_notify_charger_type(struct dwc_otg2 *otg,
 	cap.chrg_evt = event;
 	spin_unlock_irqrestore(&otg->lock, flags);
 
-	if (sdp_charging(otg)) {
+//	if (sdp_charging(otg)) {  //just modify  temporarily by yxf 2015.2.6
+if(0){
 		otg_dbg(otg, "Notify EM cap.ma = %d\n", cap.ma);
 		atomic_notifier_call_chain(&otg->usb2_phy.notifier,
 				USB_EVENT_ENUMERATED, &cap.ma);

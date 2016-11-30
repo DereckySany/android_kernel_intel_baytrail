@@ -41,11 +41,18 @@
 #include "i915_debugfs.h"
 #include <linux/moduleparam.h>
 #include "linux/mfd/intel_mid_pmic.h"
+#include "intel_dsi.h"
+#include "intel_dsi_cmd.h"
 #include <linux/pwm.h>
+#include <linux/gpio.h>
 
+extern struct drm_device *gdev;//lm for reference the gdev
+
+static u32 spark_cabc_dpst_switch_enable=0;
 #define DRM_I915_RING_DEBUG 1
 
 #if defined(CONFIG_DEBUG_FS)
+int i915_dpst_switch(bool on);
 
 static const char *yesno(int v)
 {
@@ -2486,7 +2493,120 @@ i915_wedged_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			i915_wedged_get, i915_wedged_set,
 			"%llu\n");
+/*lm add for cabc and dpst switch start*/
+void cabc_dpst_switch_start(void)
+{
+	spark_cabc_dpst_switch_enable=1;
+	printk("lm %s\n",__func__);
+	
+}
+static int
+i915_cabc_enable_get(void *data, u64 *val)
+{
+	struct drm_device *dev = gdev;
+    drm_i915_private_t *dev_priv  = NULL;
+	dev_priv = (drm_i915_private_t *) dev->dev_private;
+	if(dev_priv->dpst.feature_control)
+		*val=0;
+	else
+		*val=1;
+	return 0;
+}
 
+static int
+i915_cabc_enable_set(void *data, u64 val)
+{
+	struct drm_device *dev = gdev;
+    drm_i915_private_t *dev_priv  = NULL;
+	dev_priv = (drm_i915_private_t *) dev->dev_private;
+	printk("lm-%s the val=%llu\n",__func__,val);
+	printk("lm-%s the spark_cabc_dpst_switch_enable=%d\n",__func__,spark_cabc_dpst_switch_enable);
+	if(spark_cabc_dpst_switch_enable){
+	if(val){
+		i915_dpst_switch(false);
+		msleep(5);
+		printk("lm %s dpst off\n",__func__);
+		if(dev_priv->spark_cabc_dpst_on){
+		dev_priv->intel_dsi_cabc_dpst->hs = true;
+		printk("lm %s cabc on\n",__func__);
+		mutex_lock(&(dev_priv->i915_bklt_control_mutex));
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x83,0xBB);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x84,0x22);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x90,0x00);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x91,0xA2);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x94,0x39);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x95,0x20);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x96,0x01);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x9B,0x8C);
+		mutex_unlock(&(dev_priv->i915_bklt_control_mutex));
+		msleep(5);
+		}
+	}else{
+		if(dev_priv->spark_cabc_dpst_on){
+		dev_priv->intel_dsi_cabc_dpst->hs = true;
+		printk("lm %s cabc off\n",__func__);
+		mutex_lock(&(dev_priv->i915_bklt_control_mutex));
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x83,0xBB);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x84,0x22);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x90,0xC0);
+		mutex_unlock(&(dev_priv->i915_bklt_control_mutex));
+		msleep(5);
+		}
+		printk("lm %s dpst on\n",__func__);
+		i915_dpst_switch(true);
+	}
+	}
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(i915_cabc_enable_fops,
+			i915_cabc_enable_get, i915_cabc_enable_set,
+			"%llu\n");
+
+static int
+i915_cabc_pwm_get(void *data, u64 *val)
+{
+
+	return 0;
+}
+
+static int
+i915_cabc_pwm_set(void *data, u64 val)
+{
+	struct drm_device *dev = data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	printk("lm-%s the val=%llu\n",__func__,val);
+	dev_priv->spark_init_code_write=false;
+	if(dev_priv->spark_cabc_dpst_on){
+		dev_priv->spark_bklt_control=true;
+	}
+	cabc_dpst_switch_start();
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(i915_cabc_pwm_fops,
+			i915_cabc_pwm_get, i915_cabc_pwm_set,
+			"%llu\n");
+/*lm add for cabc and dpst switch end*/
+
+/*lm add for lcd identify start*/
+static int
+spark_lcd_id_get(void *data, u64 *val)
+{
+	*val= gpio_get_value(51);
+	return 0;
+}
+
+static int
+spark_lcd_id_set(void *data, u64 val)
+{	
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(spark_lcd_id_fops,
+			spark_lcd_id_get, spark_lcd_id_set,
+			"%llu\n");
+/*lm add for lcd identify end*/
 static int
 i915_ring_stop_get(void *data, u64 *val)
 {
@@ -2717,7 +2837,7 @@ i915_dpst_enable_disable(struct drm_device *dev, unsigned int val)
 {
 	if (!(IS_VALLEYVIEW(dev)))
 		return -ENODEV;
-
+	printk("lm %s dpst enable and disable\n",__func__);
 	/* 1=> Enable DPST, else disable. */
 	if (val == 1)
 		i915_dpst_enable_hist_interrupt(dev, true);
@@ -2822,7 +2942,35 @@ i915_dpst_get_luma_data(struct drm_device *dev, char *buf, int *len)
 
 	return 0;
 }
+//lm add
+int i915_dpst_switch(bool on)
+{
+    int ret = 0;
+    struct drm_device *dev = gdev;
+    drm_i915_private_t *dev_priv  = NULL;
+    printk("lm %s dpst switch\n",__func__);
+    if(!dev) 
+        return -EINVAL;
+   
+    dev_priv = (drm_i915_private_t *) dev->dev_private;
 
+    if(on) {
+        ret = i915_dpst_enable_disable(dev, 1);
+        if (ret)
+            return ret;
+        dev_priv->dpst.feature_control = true;
+		
+    }else {
+        dev_priv->dpst.feature_control = false;
+        ret = i915_dpst_enable_disable(dev, 0);
+        if (ret)
+            return ret; 
+		
+    }
+
+    return 0;
+}
+//lm end
 
 static ssize_t
 i915_read_dpst_api(struct file *filp,
@@ -3984,7 +4132,49 @@ drm_add_fake_info_node(struct drm_minor *minor,
 
 	return 0;
 }
+//lm
+#define TIMESTAMP_BUFFER_LEN  100U
 
+ssize_t i915_timestamp_read(struct file *filp,
+		 char __user *ubuf,
+		 size_t max,
+		 loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int len = 0;
+	char buf[TIMESTAMP_BUFFER_LEN] = {0,};
+	unsigned long flags;
+	unsigned int gpu_ts;
+	unsigned int cpu;
+	u32 sec, nsec;
+	u64 ftrace_ts;
+
+	local_irq_save(flags);
+	cpu = smp_processor_id();
+	gpu_ts = I915_READ(RING_TIMESTAMP_LO(RENDER_RING_BASE));
+	ftrace_ts = ftrace_now(cpu);
+	local_irq_restore(flags);
+
+	nsec = do_div(ftrace_ts, NSEC_PER_SEC);
+	sec = (u32) ftrace_ts;
+
+	len = snprintf(buf, TIMESTAMP_BUFFER_LEN,
+		      "CPU%03u %u.%09u s\nGPU %u ticks\n",
+		      cpu, sec, nsec, gpu_ts);
+
+	return simple_read_from_buffer(ubuf, max, ppos,
+				       (const void *) buf, sizeof(buf));
+}
+
+static const struct file_operations i915_timestamp_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_timestamp_read,
+	.write = NULL,
+	.llseek = default_llseek,
+};
+//lm
 static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
@@ -4097,6 +4287,9 @@ static struct i915_debugfs_files {
 	const struct file_operations *fops;
 } i915_debugfs_files[] = {
 	{"i915_wedged", &i915_wedged_fops},
+	{"i915_cabc_enable", &i915_cabc_enable_fops},
+	{"i915_cabc_pwm", &i915_cabc_pwm_fops},
+	{"spark_lcd_id", &spark_lcd_id_fops},
 	{"i915_cache_sharing", &i915_cache_sharing_fops},
 	{"i915_ring_stop", &i915_ring_stop_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
@@ -4111,6 +4304,7 @@ static struct i915_debugfs_files {
 	{"i915_rps_init", &i915_rps_init_fops},
 	{"i915_dpst_api", &i915_dpst_fops},
 	{"i915_rpm_api", &i915_rpm_fops},
+	{"i915_timestamp", &i915_timestamp_fops},
 };
 
 int i915_debugfs_init(struct drm_minor *minor)

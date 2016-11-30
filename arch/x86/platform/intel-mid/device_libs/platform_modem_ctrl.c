@@ -383,7 +383,12 @@ void *modem_platform_data(void *data)
 	int i;
 	char *cfg_name = data;
 	struct mcd_base_info *mcd_info;
-	pr_debug("SFI %s: modem info setup\n", __func__);
+ 	pr_debug("SFI %s: modem info setup\n", __func__);
+
+#ifndef CONFIG_MDM_CTRL
+	pr_info("%s,do not enable modem\n", __func__);
+        	return NULL;
+#endif
 
 	mcd_info = kzalloc(MDM_CTRL_MAX_MDM * sizeof(*mcd_info), GFP_KERNEL);
 	if (!mcd_info)

@@ -44,7 +44,11 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/dma_remapping.h>
+#include <linux/regulator/consumer.h>
+#include <asm/spid.h>
 #include <linux/shmem_fs.h>
+#include "intel_dsi.h"
+#include "intel_dsi_cmd.h"
 
 #define MAX_BRIGHTNESS	255
 
@@ -11073,6 +11077,21 @@ ssize_t display_runtime_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
+	int rgrt;
+	printk("lm -%s\n",__func__);
+	if ((dev_priv->spark_cabc_dpst_on)){
+		printk("lm -%s turn off CABC \n",__func__);
+		dev_priv->intel_dsi_cabc_dpst->hs=true;
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x83,0xBB);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x84,0x22);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x90,0xC0);
+	}
+	if (spid.hardware_id == BYT_TABLET_BLK_8PR1)
+		if (dev_priv->v3p3s_reg) {
+			rgrt = regulator_disable(dev_priv->v3p3s_reg);
+			if (rgrt)
+				DRM_ERROR("Failed to turn OFF 3P3SX\n");
+		}
 
 	dev_priv->is_suspending = true;
 
@@ -11134,6 +11153,8 @@ ssize_t display_runtime_resume(struct drm_device *dev)
 
 	dev_priv->s0ixstat = true;
 	dev_priv->late_resume = true;
+	printk("lm -%s\n",__func__);
+	dev_priv->spark_init_code_write=true;
 
 	/*
 	 * DO NOT Move it from here
@@ -11179,6 +11200,18 @@ ssize_t display_runtime_resume(struct drm_device *dev)
 		vlv_ccu_read(dev_priv, CCU_ICLK5_REG));
 	DRM_DEBUG_PM("Value in iClkgtval = %x\n",
 		vlv_ccu_read(dev_priv, CCU_ICLK_GATE_CTRL_REG));
+	if ((dev_priv->spark_cabc_dpst_on)){
+		printk("lm -%s turn on CABC \n",__func__);
+		dev_priv->intel_dsi_cabc_dpst->hs=true;
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x83,0xBB);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x84,0x22);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x90,0x00);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x91,0xA2);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x94,0x39);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x95,0x20);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x96,0x01);
+		dsi_vc_dcs_write_1(dev_priv->intel_dsi_cabc_dpst,0,0x9B,0x8C);
+	}//lm add
 
 	return 0;
 }
@@ -11218,12 +11251,22 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
 
 	dev_priv->s0ixstat = false; /* Keep the s0ixstat false initially */
+	dev_priv->spark_bklt_control=false;
+	dev_priv->intel_dsi_cabc_dpst=NULL;
+	//lm add
 	intel_crtc->s0ix_suspend_state = false;
 	intel_crtc->rotate180 = false;
-
+	mutex_init(&(dev_priv->i915_bklt_control_mutex));
+	dev_priv->bl_value_old=0;
+	dev_priv->spark_init_code_write=false;
+	dev_priv->spark_boot_flag=true;
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 	intel_crtc->sprite_unpin_work = NULL;
 
+	intel_crtc->primary_alpha = false;
+	intel_crtc->sprite0_alpha = true;
+	intel_crtc->sprite1_alpha = true;
+	//lm add
 	/* Disable both bend spread initially */
 	dev_priv->clockspread = false;
 	dev_priv->clockbend = false;

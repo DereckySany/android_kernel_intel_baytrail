@@ -123,6 +123,11 @@ fw-shipped- += keyspan/mpr.fw keyspan/usa18x.fw keyspan/usa19.fw	\
 	keyspan/usa28.fw keyspan/usa28xa.fw keyspan/usa28xb.fw		\
 	keyspan/usa28x.fw keyspan/usa49w.fw keyspan/usa49wlc.fw
 endif
+#wqf add for tp firmware update start
+fw-shipped-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE) += Lenovo_Spark_PVT_064A000D_20140707.img \
+							    Lenovo_Laibao_Mental_054A0008_0918.img lenovo_spark_gis_ito.img \
+							    Lenovo_Laibao_ITO_054A0009_0918.img
+#wqf add for tp firmware update end
 fw-shipped-$(CONFIG_USB_SERIAL_TI) += ti_3410.fw ti_5052.fw \
 				      mts_cdma.fw mts_gsm.fw mts_edge.fw
 fw-shipped-$(CONFIG_USB_SERIAL_EDGEPORT) += edgeport/boot.fw edgeport/boot2.fw \

@@ -762,6 +762,44 @@ static int vlv_get_register_msg(char **buf, unsigned long *size)
 	return 0;
 }
 
+// lxh:add; 20150203; 
+void lnw_gpio_set_pininfo(unsigned int gpio, unsigned int type, const char *info)
+{
+    struct gpio_bank_pnp *bank;
+    struct vlv_gpio *vg = NULL;
+    struct gpio_control *control;
+    int num;
+    int nbanks = sizeof(vlv_banks_pnp) / sizeof(struct gpio_bank_pnp);
+    int i;
+
+    for(i=0; i<nbanks; i++)
+    {
+		bank = vlv_banks_pnp + i;
+		if (gpio >= bank->gpio_base && gpio < (bank->gpio_base + bank->ngpio))
+		{
+			vg = bank->vg;
+			break;
+		}
+    }	
+    
+    control = find_gpio_control(vlv_gpio_controls, ARRAY_SIZE(vlv_gpio_controls), type);
+
+    if (control == NULL)
+	return;
+
+    num = find_pininfo_num(control, info);
+    if (num == -1)
+	return;
+
+    if (control->set)
+	control->set(control, vg, gpio, num);
+
+    printk("%s, set gpio (%d) to (%s) mode\n", __func__, gpio, info);
+    
+}
+EXPORT_SYMBOL_GPL(lnw_gpio_set_pininfo);
+
+
 static struct gpio_debug_ops vlv_gpio_debug_ops = {
 	.get_conf_reg = vlv_get_conf_reg,
 	.set_conf_reg = vlv_set_conf_reg,

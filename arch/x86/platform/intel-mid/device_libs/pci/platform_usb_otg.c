@@ -81,13 +81,15 @@ static int dwc_otg_byt_get_usbspecoverride(void)
 {
 	struct em_config_oem1_data oem1_data;
 	int charge_bit = 1, ret = 0;
-
+//add by zouhao
+#if 0
 	ret = em_config_get_oem1_data(&oem1_data);
 	if (ret <= 0) {
 		pr_err("no OEM1 table, return default value\n");
 		return charge_bit;
 	}
 	charge_bit = oem1_data.fpo_0 & BIT(0);
+#endif	
 	pr_info("OEM1 charging bit = %d\n", charge_bit);
 	return charge_bit;
 }
@@ -167,7 +169,9 @@ static struct intel_dwc_otg_pdata *get_otg_platform_data(struct pci_dev *pdev)
 			dwc_otg_pdata.gpio_cs = 54;
 			dwc_otg_pdata.gpio_reset = 144;
 			dwc_otg_pdata.ulpi_eye_calibration = 0x7f;
-			dwc_otg_pdata.sdp_charging = 1;
+			dwc_otg_pdata.sdp_charging = 0;
+			dwc_otg_pdata.charger_detect_enable = 1;
+			dwc_otg_pdata.gpio_id = 69;
 			dwc_otg_pdata.charging_compliance =
 				!dwc_otg_byt_get_usbspecoverride();
 		} else if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, CRV2) ||

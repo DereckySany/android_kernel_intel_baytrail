@@ -461,7 +461,7 @@ static inline void get_cur_bat_prop(struct power_supply *psy,
 	int ret;
 
 	bat_prop->name = psy->name;
-	bat_prop->voltage_now = VOLTAGE_OCV(psy) / 1000;
+	bat_prop->voltage_now = VOLTAGE_OCV(psy) ;
 	bat_prop->current_now = CURRENT_NOW(psy) / 1000;
 	bat_prop->temperature = TEMPERATURE(psy) / 10;
 	bat_prop->status = STATUS(psy);
@@ -758,8 +758,7 @@ static int trigger_algo(struct power_supply *psy)
 		set_cv(chrgr_lst[cnt], cv);
 	}
 
-	if ((bat_prop.algo_stat == PSY_ALGO_STAT_NOT_CHARGE) ||
-		(bat_prop.algo_stat == PSY_ALGO_STAT_FULL))
+	if (bat_prop.algo_stat == PSY_ALGO_STAT_NOT_CHARGE)
 		return -EOPNOTSUPP;
 
 	return 0;

@@ -40,12 +40,6 @@
 /* the sub-encoders aka panel drivers */
 static const struct intel_dsi_device intel_dsi_devices[] = {
 	{
-		.panel_id = MIPI_DSI_GENERIC_PANEL_ID,
-		.type = INTEL_DSI_VIDEO_MODE,
-		.name = "vbt-generic-dsi-vid-mode-display",
-		.dev_ops = &vbt_generic_dsi_display_ops,
-	},
-	{
 		.panel_id = MIPI_DSI_AUO_B101UAN01_PANEL_ID,
 		.type = INTEL_DSI_VIDEO_MODE,
 		.name = "auo-b101uan01-dsi-vid-mode-display",
@@ -64,10 +58,16 @@ static const struct intel_dsi_device intel_dsi_devices[] = {
 		.dev_ops = &panasonic_vvx09f006a00_dsi_display_ops,
 	},
 	{
-		.panel_id = MIPI_DSI_JDI_LPM070W425B_PANEL_ID,
+		.panel_id = MIPI_DSI_AUO_B101UAN01E_PANEL_ID,
 		.type = INTEL_DSI_VIDEO_MODE,
-		.name = "jdi-lpm070w425b-dsi-vid-mode-display",
-		.dev_ops = &jdi_lpm070w425b_dsi_display_ops,
+		.name = "auo-b101uan01e-dsi-vid-mode-display",
+		.dev_ops = &auo_b101uan01e_dsi_display_ops,
+	},
+	{
+		.panel_id = MIPI_DSI_CMI_NT51021_PANEL_ID,
+		.type = INTEL_DSI_VIDEO_MODE,
+		.name = "cmi-nt51021-dsi-vid-mode-display",
+		.dev_ops = &cmi_nt51021_dsi_display_ops,
 	},
 };
 
@@ -1023,6 +1023,14 @@ void intel_dsi_encoder_dpms(struct drm_encoder *encoder, int mode)
 			/* Now we need to restore MIPI_DSI_FUNC_PRG to needed value */
 			I915_WRITE(MIPI_DEVICE_READY(pipe), 0x0);
 
+#if 1          //lm
+		val = 0;
+		if (intel_dsi->eotp_pkt == 0)
+			val |= EOT_DISABLE;
+		if (intel_dsi->clock_stop)
+			val |= CLOCKSTOP;
+		I915_WRITE(MIPI_EOT_DISABLE(pipe), val);
+#endif
 			val = intel_dsi->channel <<
 						VID_MODE_CHANNEL_NUMBER_SHIFT |
 			intel_dsi->lane_count << DATA_LANES_PRG_REG_SHIFT |
@@ -1307,6 +1315,9 @@ bool intel_dsi_init(struct drm_device *dev)
 	} else
 		dev_priv->mipi_panel_id = i915_mipi_panel_id;
 
+	/*LM enable for blade2 panel*/
+	dev_priv->mipi_panel_id = MIPI_DSI_AUO_B101UAN01E_PANEL_ID;
+	dev_priv->mipi_panel_id = MIPI_DSI_CMI_NT51021_PANEL_ID;
 	for (i = 0; i < ARRAY_SIZE(intel_dsi_devices); i++) {
 		dsi = &intel_dsi_devices[i];
 		if (dsi->panel_id == dev_priv->mipi_panel_id) {

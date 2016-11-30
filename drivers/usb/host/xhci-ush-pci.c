@@ -1282,6 +1282,12 @@ static int xhci_ush_pci_probe(struct pci_dev *dev,
 	driver = (struct hc_driver *)id->driver_data;
 	pci_dev = dev;
 
+#ifndef CONFIG_MDM_CTRL
+        pr_info("%s,disable SSIC\n", __func__);
+        pci_set_power_state(dev, PCI_D3cold);
+        return -ENODEV;
+#endif
+
 	/* disable Anniedale SSIC by default and enable by request */
 	if (hsic_pdata->has_ssic) {
 		if (!hsic_pdata->ssic_enabled) {

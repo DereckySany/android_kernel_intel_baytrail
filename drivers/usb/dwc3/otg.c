@@ -577,6 +577,10 @@ stay_b_idle:
 		return DWC_STATE_EXIT;
 
 	if (events & OEVT_B_DEV_SES_VLD_DET_EVNT) {
+		if (get_id(otg) == RID_GND) {
+			otg_dbg(otg, "Stay DWC_STATE_INIT\n");
+			goto stay_b_idle;
+		}
 		otg_dbg(otg, "OEVT_B_DEV_SES_VLD_DET_EVNT\n");
 		return DWC_STATE_CHARGER_DETECTION;
 	}

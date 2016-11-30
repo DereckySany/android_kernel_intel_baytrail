@@ -451,7 +451,11 @@ struct intel_crtc {
 	struct intel_crtc_config config;
 
 	uint32_t ddi_pll_sel;
-
+	bool primary_alpha;
+	bool sprite0_alpha;
+	bool sprite1_alpha;
+	uint32_t last_pixel_size;
+	//lm add
 	/* reset counter value when the last flip was submitted */
 	unsigned int reset_counter;
 
@@ -683,6 +687,9 @@ struct intel_unpin_work {
 #define PPM_MULTIPLIER		1000000
 #define NANOSEC_MULTIPLIER	1000000000
 #define INVERSE_BEND_RESOLUTION	(VLV_ACCUMULATOR_SIZE*48*128)
+
+/* Added to control Backlight Slope programming */
+#define LP8556_MODE_SL_50MS_FL_HV_PWM_12BIT      0x3E
 
 struct intel_program_clock_bending {
 	u32 dotclock;

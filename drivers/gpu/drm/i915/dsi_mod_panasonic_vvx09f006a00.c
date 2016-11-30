@@ -52,9 +52,11 @@ static void  vvx09f006a00_get_panel_info(int pipe,
 		if (BYT_CR_CONFIG) {
 			connector->display_info.width_mm = 128;
 			connector->display_info.height_mm = 80;
+			printk("liumiao============the BYT_CR_CONFIG is yes\n");
 		} else {
-			connector->display_info.width_mm = 192;
-			connector->display_info.height_mm = 120;
+			connector->display_info.width_mm = 120;
+			connector->display_info.height_mm = 192;
+			printk("liumiao============the BYT_CR_CONFIG is no\n");
 		}
 	}
 
@@ -81,12 +83,12 @@ static bool  vvx09f006a00_load_timing(struct drm_display_mode *mode)
 	}
 
 	mode->hsync_start = mode->hdisplay + 110;
-	mode->hsync_end = mode->hsync_start + 38;
-	mode->htotal = mode->hsync_end + 90;
+	mode->hsync_end = mode->hsync_start + 1;
+	mode->htotal = mode->hsync_end + 32;
 
-	mode->vsync_start = mode->vdisplay + 15;
-	mode->vsync_end = mode->vsync_start + 10;
-	mode->vtotal = mode->vsync_end + 10;
+	mode->vsync_start = mode->vdisplay + 11;
+	mode->vsync_end = mode->vsync_start + 1;
+	mode->vtotal = mode->vsync_end + 14;
 
 	mode->vrefresh = 60;
 	mode->clock =  mode->vrefresh * mode->vtotal *
@@ -120,8 +122,8 @@ static struct drm_display_mode *vvx09f006a00_get_modes(
 		mode->vdisplay = BYT_CR_USERMODE_VDISPLAY;
 	} else {
 		/* Hardcode 1920x1200 */
-		mode->hdisplay = BYT_MODESET_HDISPLAY;
-		mode->vdisplay = BYT_MODESET_VDISPLAY;
+		mode->hdisplay = BYT_MODESET_VDISPLAY;
+		mode->vdisplay = BYT_MODESET_HDISPLAY;
 	}
 
 	if (!vvx09f006a00_load_timing(mode)) {
@@ -272,7 +274,7 @@ bool vvx09f006a00_init(struct intel_dsi_device *dsi)
 	 * In order to make FFRD8 work on UEFI GOP with default VBT,
 	 * hardcoding rotation bit to 1 only for Panasonic MIPI Panel */
 	if (!(dev_priv->vbt.is_180_rotation_enabled) && !(BYT_CR_CONFIG))
-		dev_priv->vbt.is_180_rotation_enabled = 1;
+		dev_priv->vbt.is_180_rotation_enabled = 0;
 
 	return true;
 }

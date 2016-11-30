@@ -1767,7 +1767,9 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	* not the hot_plug(). After init, we can detect plug-in/out in
 	* hot-plug functions
 	*/
-	intel_hdmi->edid = intel_hdmi_get_edid(connector, true);
+	/* the product doesn't have hdmi device,will cause i2c timeout to read the edid */
+	//intel_hdmi->edid = intel_hdmi_get_edid(connector, true);
+	intel_hdmi->edid = NULL;
 
 	/* Update the first status */
 	connector->status = intel_hdmi_detect(connector, false);

@@ -50,7 +50,7 @@
  * values and provides those values to the kernel to program into the DPST
  * hardware.
  */
-
+extern int i915_dpst_switch(bool on);
 static u32
 get_internal_display_resolution(struct drm_device *dev)
 {
@@ -128,7 +128,7 @@ i915_dpst_enable_hist_interrupt(struct drm_device *dev, bool reset_adjustment)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 blm_hist_ctl;
-
+	printk("lm %s ++++++++++++++++\n",__func__);
 	if (reset_adjustment) {
 		dev_priv->dpst.enabled = true;
 		dev_priv->dpst.blc_adjustment = DPST_MAX_FACTOR;
@@ -161,7 +161,7 @@ i915_dpst_disable_hist_interrupt(struct drm_device *dev, bool reset_adjustment)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 blm_hist_guard, blm_hist_ctl;
-
+	printk("lm %s ==============\n",__func__);
 	/* Disable histogram interrupts. It is OK to clear pending interrupts
 	 * and disable interrupts at the same time. */
 	blm_hist_guard = I915_READ(BLC_HIST_GUARD);
@@ -302,7 +302,8 @@ i915_dpst_init(struct drm_device *dev,
 
 	/* Enable histogram interrupts */
 	i915_dpst_enable_hist_interrupt(dev, true);
-
+	i915_dpst_switch(false);
+	
 	return 0;
 }
 

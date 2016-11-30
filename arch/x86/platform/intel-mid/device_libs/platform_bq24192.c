@@ -59,7 +59,11 @@ char *bq24192_supplied_to[] = {
 	"max170xx_battery",
 	"max17042_battery",
 	"max17047_battery",
+	"bq27x00_battery",
+	"bq27541_battery",
+	"bq27500_battery",
 	"intel_fuel_gauge",
+
 };
 
 static int const bptherm_curve_data[BPTHERM_CURVE_MAX_SAMPLES]
@@ -618,9 +622,9 @@ read_adc_exit:
 /* baytrail/cherrytrail platform init starts here */
 /**************************************************/
 #ifdef CONFIG_POWER_SUPPLY_CHARGER
-#define BYTCR_CHRG_CUR_NOLIMIT		1800
-#define BYTCR_CHRG_CUR_MEDIUM		1400
-#define BYTCR_CHRG_CUR_LOW		1000
+#define BYTCR_CHRG_CUR_NOLIMIT		1500
+#define BYTCR_CHRG_CUR_MEDIUM		1000
+#define BYTCR_CHRG_CUR_LOW		500
 
 static struct ps_batt_chg_prof byt_ps_batt_chrg_prof;
 static struct ps_pse_mod_prof byt_batt_chg_profile;
@@ -644,10 +648,80 @@ static struct power_supply_throttle byt_throttle_states[] = {
 
 static void *platform_byt_get_batt_charge_profile(void)
 {
-	if (!em_config_get_charge_profile(&byt_batt_chg_profile))
+#if 0
+	if (!em_config_get_charge_profile(&byt_batt_chg_profile)){
+		printk("%s Fail get battery profile\n", __func__);
 		byt_ps_batt_chrg_prof.chrg_prof_type = CHRG_PROF_NONE;
-	else
+	}
+	else{
+		printk("%s get battery profile\n", __func__);
 		byt_ps_batt_chrg_prof.chrg_prof_type = PSE_MOD_CHRG_PROF;
+	}
+#else
+	struct ps_temp_chg_table temp_mon_range[BATT_TEMP_NR_RNG];
+
+	char batt_str[] = "INTN0001";
+
+	/*
+	 * WA: hard coding the profile
+	 * till we get OEM0 table from FW.
+	 */
+	memcpy(byt_batt_chg_profile.batt_id, batt_str, strlen(batt_str));
+
+	byt_batt_chg_profile.battery_type = 0x2;
+	byt_batt_chg_profile.capacity = 0x2C52;
+	byt_batt_chg_profile.voltage_max = 4352;
+	byt_batt_chg_profile.chrg_term_ma = 128;
+	byt_batt_chg_profile.low_batt_mV = 3400;
+	byt_batt_chg_profile.disch_tmp_ul = 50;
+	byt_batt_chg_profile.disch_tmp_ll = 0;
+	byt_batt_chg_profile.temp_mon_ranges = 5;
+
+	temp_mon_range[0].temp_up_lim = 50;
+	temp_mon_range[0].full_chrg_vol = 4100;
+	temp_mon_range[0].full_chrg_cur = 1500;
+	temp_mon_range[0].maint_chrg_vol_ll = 4050;
+	temp_mon_range[0].maint_chrg_vol_ul = 4100;
+	temp_mon_range[0].maint_chrg_cur = 1500;
+
+	temp_mon_range[1].temp_up_lim = 45;
+	temp_mon_range[1].full_chrg_vol = 4352;
+	temp_mon_range[1].full_chrg_cur = 1500;
+	temp_mon_range[1].maint_chrg_vol_ll = 4300;
+	temp_mon_range[1].maint_chrg_vol_ul = 4352;
+	temp_mon_range[1].maint_chrg_cur = 1500;
+
+	temp_mon_range[2].temp_up_lim = 20;
+	temp_mon_range[2].full_chrg_vol = 4352;
+	temp_mon_range[2].full_chrg_cur = 1290;
+	temp_mon_range[2].maint_chrg_vol_ll = 4300;
+	temp_mon_range[2].maint_chrg_vol_ul = 4352;
+	temp_mon_range[2].maint_chrg_cur = 1290;
+
+	temp_mon_range[3].temp_up_lim = 10;
+	temp_mon_range[3].full_chrg_vol = 4352;
+	temp_mon_range[3].full_chrg_cur = 860;
+	temp_mon_range[3].maint_chrg_vol_ll = 4300;
+	temp_mon_range[3].maint_chrg_vol_ul = 4352;
+	temp_mon_range[3].maint_chrg_cur = 860;
+
+	temp_mon_range[4].temp_up_lim = 0;
+	temp_mon_range[4].full_chrg_vol = 0;
+	temp_mon_range[4].full_chrg_cur = 0;
+	temp_mon_range[4].maint_chrg_vol_ll = 0;
+	temp_mon_range[4].maint_chrg_vol_ul = 0;
+	temp_mon_range[4].maint_chrg_vol_ul = 0;
+	temp_mon_range[4].maint_chrg_cur = 0;
+
+	memcpy(byt_batt_chg_profile.temp_mon_range,
+		temp_mon_range,
+		BATT_TEMP_NR_RNG * sizeof(struct ps_temp_chg_table));
+
+	byt_batt_chg_profile.temp_low_lim = 0;
+
+	byt_ps_batt_chrg_prof.chrg_prof_type = PSE_MOD_CHRG_PROF;
+#endif	
+
 
 	byt_ps_batt_chrg_prof.batt_prof = &byt_batt_chg_profile;
 	battery_prop_changed(POWER_SUPPLY_BATTERY_INSERTED,
@@ -667,9 +741,9 @@ static void platform_byt_init_chrg_params(
 			platform_byt_get_batt_charge_profile();
 	pdata->sfi_tabl_present = true;
 
-	pdata->max_cc = 1800;	/* 1800 mA */
-	pdata->max_cv = 4350;	/* 4350 mV */
-	pdata->max_temp = 45;	/* 45 DegC */
+	pdata->max_cc = 1500;	/* 1800 mA */
+	pdata->max_cv = 4352;	/* 4350 mV */
+	pdata->max_temp = 50;	/* 45 DegC */
 	pdata->min_temp = 0;	/* 0 DegC */
 }
 #else
@@ -728,8 +802,8 @@ void *bq24192_platform_data(void *info)
 
 	pr_debug("%s:\n", __func__);
 
-	if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, CRV2) ||
-		INTEL_MID_BOARD(3, TABLET, BYT, BLK, ENG, CRV2)) {
+	if (1) {
+		printk("yxf %s   called  \n",__func__);
 		platform_byt_init_chrg_params(&platform_data);
 	} else {
 		platform_clvp_init_chrg_params(&platform_data);

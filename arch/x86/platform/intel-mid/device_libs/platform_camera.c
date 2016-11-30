@@ -27,6 +27,9 @@
 #include "platform_lm3554.h"
 #include "platform_lm3642.h"
 #include "platform_ap1302.h"
+#include "platform_ov8865.h"
+#include "platform_ov9760.h"
+#include "platform_sy7802.h"
 #include "platform_pixter.h"
 #include "platform_m10mo.h"
 #ifdef CONFIG_CRYSTAL_COVE
@@ -38,38 +41,9 @@
  *       set this info in the platform data of each sensor
  */
 const struct intel_v4l2_subdev_id v4l2_ids[] = {
-	{"mt9e013", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"ov8830", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"ov8858", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"imx208", RAW_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"imx175", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"imx135", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"imx219", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"imx135fuji", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"imx134", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"gc2235", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"imx132", RAW_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"ov9724", RAW_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"ov2722", RAW_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"ov5693", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"mt9d113", SOC_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"mt9m114", SOC_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"mt9v113", SOC_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"s5k8aay", SOC_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"s5k6b2yx", RAW_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"ap1302", SOC_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"ov680", SOC_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"m10mo", SOC_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
+	{"ov8865", RAW_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
+	{"ov9760", RAW_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
 	{"lm3554", LED_FLASH, -1},
-	{"lm3559", LED_FLASH, -1},
-	{"lm3560", LED_FLASH, -1},
-	{"lm3642", LED_FLASH, -1},
-	{"xactor_a", SOC_CAMERA, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"xactor_b", SOC_CAMERA, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"xactor_c", SOC_CAMERA, ATOMISP_CAMERA_PORT_TERTIARY},
-	{"pixter_0", PIXTER_0_TYPE, ATOMISP_CAMERA_PORT_PRIMARY},
-	{"pixter_1", PIXTER_1_TYPE, ATOMISP_CAMERA_PORT_SECONDARY},
-	{"pixter_2", PIXTER_2_TYPE, ATOMISP_CAMERA_PORT_TERTIARY},
 	{},
 };
 
@@ -82,58 +56,46 @@ struct camera_device_table {
 #ifdef CONFIG_ACPI
 static struct camera_device_table byt_ffrd10_cam_table[] = {
 	{
-		{SFI_DEV_TYPE_I2C, 4, 0x10, 0x0, 0x0, "imx175"},
-		{"imx175", SFI_DEV_TYPE_I2C, 0, &imx175_platform_data,
+		{SFI_DEV_TYPE_I2C, 4, 0x36, 0x0, 0x0, "ov8865"},
+		{"ov8865", SFI_DEV_TYPE_I2C, 0, &ov8865_platform_data,
 			&intel_register_i2c_camera_device}
-	}, {
-		{SFI_DEV_TYPE_I2C, 4, 0x36, 0x0, 0x0, "ov2722"},
-		{"ov2722", SFI_DEV_TYPE_I2C, 0, &ov2722_platform_data,
+	},
+	{
+		{SFI_DEV_TYPE_I2C, 4, 0x10, 0x0, 0x0, "ov9760"},
+		{"ov9760", SFI_DEV_TYPE_I2C, 0, &ov9760_platform_data,
 			&intel_register_i2c_camera_device}
-	}, {
-		{SFI_DEV_TYPE_I2C, 4, 0x53, 0x0, 0x0, "lm3554"},
-		{"lm3554", SFI_DEV_TYPE_I2C, 0, &lm3554_platform_data_func,
+	},
+	{
+		{SFI_DEV_TYPE_I2C, 3, 0x53, 0x0, 0x0, "sy7802"},
+		{"sy7802", SFI_DEV_TYPE_I2C, 0, &sy7802_platform_data_func,
 			&intel_register_i2c_camera_device}
-	}
+	},
 };
 
 static struct camera_device_table byt_ffrd8_cam_table[] = {
 	{
-		{SFI_DEV_TYPE_I2C, 4, 0x10, 0x0, 0x0, "imx134"},
-		{"imx134", SFI_DEV_TYPE_I2C, 0, &imx134_platform_data,
+		{SFI_DEV_TYPE_I2C, 4, 0x36, 0x0, 0x0, "ov8865"},
+		{"ov8865", SFI_DEV_TYPE_I2C, 0, &ov8865_platform_data,
 			&intel_register_i2c_camera_device}
-	}, {
-		{SFI_DEV_TYPE_I2C, 4, 0x36, 0x0, 0x0, "ov2722"},
-		{"ov2722", SFI_DEV_TYPE_I2C, 0, &ov2722_platform_data,
+	},
+	{
+		{SFI_DEV_TYPE_I2C, 4, 0x10, 0x0, 0x0, "ov9760"},
+		{"ov9760", SFI_DEV_TYPE_I2C, 0, &ov9760_platform_data,
 			&intel_register_i2c_camera_device}
-	}, {
+	},
+	{
 		{SFI_DEV_TYPE_I2C, 3, 0x53, 0x0, 0x0, "lm3554"},
 		{"lm3554", SFI_DEV_TYPE_I2C, 0, &lm3554_platform_data_func,
 			&intel_register_i2c_camera_device}
-	}
+	},
 };
 
 static struct camera_device_table byt_crv2_cam_table[] = {
 	{
-		{SFI_DEV_TYPE_I2C, 2, 0x3C, 0x0, 0x0, "gc2235"},
-		{"gc2235", SFI_DEV_TYPE_I2C, 0, &gc2235_platform_data,
-			&intel_register_i2c_camera_device}
-	}, {
-		{SFI_DEV_TYPE_I2C, 2, 0x10, 0x0, 0x0, "imx134"},
-		{"imx134", SFI_DEV_TYPE_I2C, 0, &imx134_platform_data,
-			&intel_register_i2c_camera_device}
-	}, {
-		{SFI_DEV_TYPE_I2C, 2, 0x36, 0x0, 0x0, "ov2722"},
-		{"ov2722", SFI_DEV_TYPE_I2C, 0, &ov2722_platform_data,
-			&intel_register_i2c_camera_device}
-	}, {
 		{SFI_DEV_TYPE_I2C, 2, 0x53, 0x0, 0x0, "lm3554"},
 		{"lm3554", SFI_DEV_TYPE_I2C, 0, &lm3554_platform_data_func,
 			&intel_register_i2c_camera_device}
-	}, {
-		{SFI_DEV_TYPE_I2C, 2, 0x63, 0x0, 0x0, "lm3642"},
-		{"lm3642", SFI_DEV_TYPE_I2C, 0, &lm3642_platform_data_func,
-			&intel_register_i2c_camera_device}
-	}
+	}, 
 };
 
 static struct camera_device_table cht_rvp_cam_table[] = {
@@ -149,7 +111,7 @@ static struct camera_device_table cht_rvp_cam_table[] = {
 		{SFI_DEV_TYPE_I2C, 4, 0x53, 0x0, 0x0, "lm3554"},
 		{"lm3554", SFI_DEV_TYPE_I2C, 0, &lm3554_platform_data_func,
 			&intel_register_i2c_camera_device}
-	}
+	},
 };
 
 static struct camera_device_table cht_ffd_cam_table[] = {
@@ -429,21 +391,9 @@ struct i2c_client *i2c_find_client_by_name(char *name)
 static void atomisp_unregister_acpi_devices(struct atomisp_platform_data *pdata)
 {
 	const char *subdev_name[] = {
-		"3-0053",	/* FFRD8 lm3554 */
-		"4-0036",	/* ov2722 */
-		"4-0010",	/* imx1xx Sensor*/
-		"4-0053",	/* FFRD10 lm3554 */
-		"4-0054",	/* imx1xx EEPROM*/
-		"4-000c",	/* imx1xx driver*/
-		"2-0053",	/* byt-crv2 lm3554*/
-		"2-0063",	/* byt-crv2 lm3642*/
-		"2-0010",	/* imx1xx driver*/
-		"2-0036",	/* ov2722 driver*/
-		"2-003c",	/* gc2235 driver*/
-		"2-0010",	/* CHT OV5693 */
-		"4-003c",	/* CHT AP1302 */
-		"1-0053",	/* CHT lm3554 */
-		"4-001f",	/* CHT m10mo */
+		"4-0036",	/* Bld II ov8865 */
+		"4-0010",	/* Bld II ov9760 */
+		"3-0053", 	/* led sy7802 */
 #if 0
 		"INTCF0B:00",	/* From ACPI ov2722 */
 		"INTCF1A:00",	/* From ACPI imx175 */
@@ -696,6 +646,7 @@ void __init camera_init_device(void)
 	if (INTEL_MID_BOARD(1, TABLET, BYT)) {
 		if (spid.hardware_id == BYT_TABLET_BLK_8PR0 ||
 		    spid.hardware_id == BYT_TABLET_BLK_8PR1) {
+		    //printk("[%s:] yxw test  line = %d\n",__FUNCTION__,__LINE__);
 			table = byt_ffrd8_cam_table;
 			entry_num = ARRAY_SIZE(byt_ffrd8_cam_table);
 		} else if (spid.hardware_id == BYT_TABLET_BLK_CRV2) {

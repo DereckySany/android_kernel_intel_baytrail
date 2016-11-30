@@ -58,8 +58,8 @@
 #define BYT_BUTTON_DET_DELAY            100
 #define BYT_HS_DET_POLL_INTRVL          100
 #define BYT_BUTTON_EN_DELAY             1500
-
-#define BYT_HS_DET_RETRY_COUNT          6
+//change for Decreasing HP Detection Time CPF 20140811
+#define BYT_HS_DET_RETRY_COUNT          2
 
 struct byt_mc_private {
 #ifdef CONFIG_SND_SOC_COMMS_SSP
@@ -211,9 +211,9 @@ static int byt_check_jack_type(void)
 					msecs_to_jiffies(ctx->button_en_delay));
 		} else /* RT5640_NO_JACK */
 			jack_type = 0;
-
-		if (jack_type != SND_JACK_HEADSET)
-			byt_set_mic_bias_ldo(codec, false);
+		//change for Headphone MICBiase1,realtek 20140815
+		/*if (jack_type != SND_JACK_HEADSET)
+			byt_set_mic_bias_ldo(codec, false); */
 
 	} else
 		jack_type = 0;
@@ -565,8 +565,11 @@ static const struct snd_soc_dapm_widget byt_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route byt_audio_map[] = {
-	{"IN2P", NULL, "Headset Mic"},
-	{"IN2N", NULL, "Headset Mic"},
+	//{"IN2P", NULL, "Headset Mic"},
+	//change for spark using MONO_P/N as HS MIC input port 20140819
+	{"IN3P", NULL, "Headset Mic"},
+	//{"IN2N", NULL, "Headset Mic"},
+	{"IN3N", NULL, "Headset Mic"},
 	{"DMIC1", NULL, "Int Mic"},
 	{"Headphone", NULL, "HPOL"},
 	{"Headphone", NULL, "HPOR"},
@@ -911,7 +914,8 @@ static int byt_init(struct snd_soc_pcm_runtime *runtime)
 		2.1K to 1.5K. Therefore the correct over current threshold
 		for this bias resistance is 1500uA. */
 		rt5640_config_ovcd_thld(codec, RT5640_MIC1_OVTH_1500UA,
-					RT5640_MIC_OVCD_SF_1P0);
+					RT5640_MIC_OVCD_SF_0P5);
+					//RT5640_MIC_OVCD_SF_1P0);
 	else
 		/* Threshold base = 2000uA; scale factor = 0.5 =>
 		effective threshold of 1000uA */
@@ -983,6 +987,13 @@ static int byt_init(struct snd_soc_pcm_runtime *runtime)
 	snd_soc_dapm_ignore_suspend(&card->dapm, "Headset Mic");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "Ext Spk");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "Int Mic");
+	//add for HS Voice Call 20140811
+	//snd_soc_dapm_ignore_suspend(&card->dapm, "bias_level");
+        //add for Pulling Up HS micbias1 during HS Voice Call 20140819
+	snd_soc_dapm_ignore_suspend(&card->dapm, "micbias1");
+	//add for ignoring HS_MIC_IN_P/N suspend during Hs Voice Call 20140819
+	snd_soc_dapm_ignore_suspend(&card->dapm, "IN3P");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "IN3N");
 
 	snd_soc_dapm_enable_pin(dapm, "Headset Mic");
 	snd_soc_dapm_enable_pin(dapm, "Headphone");
@@ -1265,9 +1276,14 @@ static struct platform_driver snd_byt_mc_driver = {
 	.shutdown = snd_byt_mc_shutdown,
 };
 
+#define LDOEN_GPIO 203
 static int __init snd_byt_driver_init(void)
 {
 	pr_info("Baytrail Machine Driver byt_rt5642 registerd\n");
+	gpio_request(LDOEN_GPIO,NULL);
+	gpio_direction_output(LDOEN_GPIO,1);
+	gpio_free(LDOEN_GPIO);
+	printk(KERN_ERR "%s LDOEN_GPIO PULL UP\n",__func__);
 	return platform_driver_register(&snd_byt_mc_driver);
 }
 late_initcall(snd_byt_driver_init);

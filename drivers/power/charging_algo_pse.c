@@ -18,7 +18,7 @@
 *  MAINT_EXIT_OFFSET) then system can switch to normal charging
 */
 #define MAINT_EXIT_OFFSET 50  /* mV */
-
+#if  0
 static int get_tempzone(struct ps_pse_mod_prof *pse_mod_bprof,
 		int temp)
 {
@@ -36,7 +36,90 @@ static int get_tempzone(struct ps_pse_mod_prof *pse_mod_bprof,
 			break;
 	return i-1;
 }
+#else          //designed according to lenovo request
+struct charge_temp_delta {
+	u32 rise;
+	u32 fall;
+};
+/* Next is the delta temperature zone */
+static struct charge_temp_delta delta_temp[] =
+{
+	{1,2},//45~50
+	{1,2},//20~45
+	{1,2},//10~20
+	{2,2},//0~10
+	
+};
+#define  OVER_COLD_OR_HOT     100
+static int get_tempzone(struct ps_pse_mod_prof *pse_mod_bprof,
+		int temp)
+{
 
+	int i = 0;
+	static int   save_i  = OVER_COLD_OR_HOT;
+	int delta = 0;
+
+
+	if ((temp < pse_mod_bprof->temp_low_lim) ||
+		(temp > pse_mod_bprof->temp_mon_range[0].temp_up_lim))
+	{
+		save_i = OVER_COLD_OR_HOT;
+		return -EINVAL;
+	}
+
+
+
+
+	if(save_i == OVER_COLD_OR_HOT)
+	{
+		if( (temp<= (pse_mod_bprof->temp_low_lim+delta_temp[3].rise)) || temp>=( pse_mod_bprof->temp_mon_range[0].temp_up_lim-delta_temp[0].fall ) )
+			return  -EINVAL;
+		else
+		{
+			for (i = 0; i < 5; ++i)
+			if (temp > pse_mod_bprof->temp_mon_range[i].temp_up_lim)
+				break;
+
+			save_i = i -1;
+			return  save_i;
+		}
+		
+	}
+
+	for (i = 0; i < 5; ++i)
+		if (temp > pse_mod_bprof->temp_mon_range[i].temp_up_lim)
+			break;
+
+	i = i-1;
+	if(save_i > i)
+	{
+		if(temp>(pse_mod_bprof->temp_mon_range[save_i].temp_up_lim+delta_temp[save_i-1].rise))
+		{
+			save_i = i;
+			return i;
+		}
+		else
+		{
+			return save_i;
+		}
+	}
+	
+	if(save_i <i)
+	{
+		if(temp<(pse_mod_bprof->temp_mon_range[save_i+1].temp_up_lim-delta_temp[save_i+1].fall))
+		{
+			save_i = i;
+			return i;
+		}
+		else
+		{
+			return save_i;
+		}
+	}
+	save_i = i;
+	return i;
+}
+#endif
 static inline bool __is_battery_full
 	(long volt, long cur, long iterm, unsigned long cv)
 {
@@ -97,6 +180,7 @@ static enum psy_algo_stat pse_get_next_cc_cv(struct batt_props bat_prop,
 	enum psy_algo_stat algo_stat = bat_prop.algo_stat;
 	int maint_exit_volt;
 
+
 	*cc = *cv = 0;
 
 	/* If STATUS is discharging, assume that charger is not connected.
@@ -111,8 +195,8 @@ static enum psy_algo_stat pse_get_next_cc_cv(struct batt_props bat_prop,
 	if ((bprof.chrg_prof_type != PSE_MOD_CHRG_PROF) || (!pse_mod_bprof))
 		return PSY_ALGO_STAT_NOT_CHARGE;
 
+	
 	tzone = get_tempzone(pse_mod_bprof, bat_prop.temperature);
-
 	if (tzone < 0)
 		return PSY_ALGO_STAT_NOT_CHARGE;
 
@@ -163,7 +247,21 @@ static enum psy_algo_stat pse_get_next_cc_cv(struct batt_props bat_prop,
 		algo_stat = PSY_ALGO_STAT_CHARGE;
 	}
 
-	if (bat_prop.voltage_now > *cv) {
+/* according to lenovo's request  */
+	if(*cc!= 0)
+	{
+		if(tzone == 2 || tzone == 3)//temp at 0~20
+		{
+			if(bat_prop.voltage_now >=4100)
+				*cc = 430;
+		}
+	}
+
+	printk("%s, cc =%d, cv = %d bat_prop.voltage_now=%d,tzone=%d\n",__func__,*cc, *cv,bat_prop.voltage_now,tzone);
+		
+/*yxf add by 50 for detect voltage is not very corrrect */
+	//if (bat_prop.voltage_now > *cv) {
+	if ( (bat_prop.voltage_now-50) > *cv) {
 		algo_stat = PSY_ALGO_STAT_NOT_CHARGE;
 		return algo_stat;
 	}

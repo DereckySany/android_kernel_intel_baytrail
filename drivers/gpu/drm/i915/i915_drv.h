@@ -1422,6 +1422,7 @@ typedef struct drm_i915_private {
 	u32 irq_mask;
 	u32 hotplugstat;
 	u32 pfit_pipe;
+	struct regulator *v3p3s_reg;
 	bool s0ixstat;
 	bool audio_suspended;
 	bool late_resume;
@@ -1432,6 +1433,7 @@ typedef struct drm_i915_private {
 	bool clockbend;
 	bool unplug;
 	bool maxfifo_enabled;
+	bool is_tiled;
 	bool atomic_update;
 	bool pri_update;
 	bool wait_vbl;
@@ -1694,6 +1696,18 @@ typedef struct drm_i915_private {
 
 	struct i915_perfmon perfmon;
 	struct i915_plane_stat plane_stat;
+
+	uint32_t pf_change_status[2];
+	struct intel_dsi * intel_dsi_cabc_dpst;//wqf add for intel write register command using 
+	bool spark_bklt_control;//wqf add for spark backlight control
+	struct mutex i915_bklt_control_mutex;//wqf add for cabc backlight control mutex
+	unsigned char bl_value_old;//wqf add for write one for same backlight level
+	bool spark_cabc_dpst_on;//wqf add for distinguish hardware rework
+	bool spark_init_code_write;//wqf add for fix resume issue
+	int lcd_flag;   //mzy add for distinguish lcd
+	struct delayed_work spark_bkl_delay_enable_work;
+	bool spark_boot_flag;//wqf add for fixing boot flicking
+    
 } drm_i915_private_t;
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
