@@ -1070,6 +1070,7 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 		dw_writel(dev, lcnt, DW_IC_FS_SCL_LCNT);
 		dev_dbg(dev->dev, "Fast-mode HCNT:LCNT = %d:%d\n", hcnt, lcnt);
 	}
+	dw_writel(dev, 0x50, 0x7c);//add by zuoqiang
 
 	/* Configure Tx/Rx FIFO threshold levels */
 	dw_writel(dev, dev->tx_fifo_depth/2, DW_IC_TX_TL);

@@ -53,6 +53,7 @@ struct vibra_info *mid_vibra_setup(struct device *dev, struct mid_vibra_pdata *d
 void *mid_vibra_acpi_get_drvdata(const char *hid);
 int intel_mid_plat_vibra_probe(struct platform_device *pdev);
 int intel_mid_plat_vibra_remove(struct platform_device *pdev);
+void  intel_mid_plat_vibra_shutdown(struct platform_device *pdev);
 
 extern struct mid_vibra_pdata pmic_vibra_data_byt_ffrd8;
 extern struct mid_vibra_pdata pmic_vibra_data_cht;

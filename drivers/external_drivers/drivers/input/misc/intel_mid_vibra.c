@@ -22,7 +22,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
@@ -35,6 +34,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/lnw_gpio.h>
 #include <linux/input/intel_mid_vibra.h>
+#include <asm/intel-mid.h>
 #include <trace/events/power.h>
 #include "mid_vibra.h"
 
@@ -329,9 +329,12 @@ static int vibra_drv2605_calibrate(struct vibra_info *info)
 		if (!((status >> DRV2605_DIAG_RESULT_BIT) & 0x1) &&
 			(reg_val != DRV2605_AUTO_CAL_COMP_VALUE)) {
 
+			if (!((INTEL_MID_BOARD(1, PHONE, MOFD)) ||
+					(INTEL_MID_BOARD(1, TABLET, MOFD)))) {
 			vibra_gpio_set_value(info, 0);
 			pr_debug("Do Nothing -  Device Calibrated\n");
 			return 0;
+			}
 		}
 	}
 
@@ -533,7 +536,6 @@ void *mid_vibra_acpi_get_drvdata(const char *hid)
 
 static const struct acpi_device_id vibra_acpi_ids[] = {
 	{ "VIB8601", (kernel_ulong_t) &pmic_vibra_data_byt_ffrd8 },
-	{ "VIBR22A8", (kernel_ulong_t) &pmic_vibra_data_cht },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, vibra_acpi_ids);
@@ -549,6 +551,7 @@ static struct platform_driver plat_vibra_driver = {
 	},
 	.probe = intel_mid_plat_vibra_probe,
 	.remove = intel_mid_plat_vibra_remove,
+	.shutdown = intel_mid_plat_vibra_shutdown,//wqf add for fix vibrator shutdown shake
 };
 
 /**

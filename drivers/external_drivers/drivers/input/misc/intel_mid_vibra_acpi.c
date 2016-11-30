@@ -45,7 +45,7 @@
 #define CRYSTALCOVE_PMIC_VIBRA_MAX_BASEUNIT	0x7F
 
 struct mid_vibra_pdata pmic_vibra_data_byt_ffrd8 = {
-	.time_divisor	= 0x0,
+	.time_divisor	= 0xff,
 	.base_unit	= 0x0,
 	.gpio_pwm	= -1,
 	.name		= "drv8601",
@@ -80,11 +80,19 @@ static int vibra_pmic_pwm_configure(struct vibra_info *info, bool enable)
 		}
 
 		clk_div = *info->base_unit;
-		duty_cyc = *info->duty_cycle;
+		//duty_cyc = *info->duty_cycle;  /*wqf delete*/
+		duty_cyc = pmic_vibra_data_byt_ffrd8.time_divisor;
+		//printk("wqf %d: %s:duty_cyc=%x\n",__LINE__,__func__,duty_cyc);//wqf add
 
 		clk_div = clk_div | CRYSTALCOVE_PMIC_PWM_ENABLE;
 		intel_mid_pmic_writeb(CRYSTALCOVE_PMIC_PWM1_DUTYCYC_REG, duty_cyc);
 		intel_mid_pmic_writeb(CRYSTALCOVE_PMIC_PWM1_CLKDIV_REG, clk_div);
+		/*wqf add start*/
+		duty_cyc = intel_mid_pmic_readb(CRYSTALCOVE_PMIC_PWM1_DUTYCYC_REG);
+		//printk("wqf %d: %s:duty_cyc=%x\n",__LINE__,__func__,duty_cyc);//wqf add
+		clk_div =  intel_mid_pmic_readb(CRYSTALCOVE_PMIC_PWM1_CLKDIV_REG);
+		//printk("wqf %d %s:clk_div=%x\n",__LINE__,__func__,clk_div);//wqf add
+		/*wqf add end*/
 	} else {
 		/*disable PWM block */
 		clk_div =  intel_mid_pmic_readb(CRYSTALCOVE_PMIC_PWM1_CLKDIV_REG);
@@ -176,6 +184,24 @@ int intel_mid_plat_vibra_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
+/*wqf add for fix vibrator shutdown problem start*/
+void  intel_mid_plat_vibra_shutdown(struct platform_device *pdev)
+{
+	u8 clk_div;
+	u8 duty_cyc = 0;
+	printk(" %s called \n",__func__);	
+	/*disable PWM block */
+	clk_div =  intel_mid_pmic_readb(CRYSTALCOVE_PMIC_PWM1_CLKDIV_REG);
+	intel_mid_pmic_writeb(CRYSTALCOVE_PMIC_PWM1_CLKDIV_REG,
+			      (clk_div & ~CRYSTALCOVE_PMIC_PWM_ENABLE));
+	intel_mid_pmic_writeb(CRYSTALCOVE_PMIC_PWM1_DUTYCYC_REG, duty_cyc);
+	
+	duty_cyc = intel_mid_pmic_readb(CRYSTALCOVE_PMIC_PWM1_DUTYCYC_REG);
+	printk("wqf %d: %s:duty_cyc=%x\n",__LINE__,__func__,duty_cyc);//wqf add
+	clk_div =  intel_mid_pmic_readb(CRYSTALCOVE_PMIC_PWM1_CLKDIV_REG);
+	printk("wqf %d %s:clk_div=%x\n",__LINE__,__func__,clk_div);//wqf add
+}
+/*wqf add for fix vibrator shutdown problem end*/
 
 #else
 int intel_mid_plat_vibra_probe(struct platform_device *pdev)
@@ -186,6 +212,10 @@ int intel_mid_plat_vibra_probe(struct platform_device *pdev)
 int intel_mid_plat_vibra_remove(struct platform_device *pdev)
 {
 	return -EINVAL;
+}
+void  intel_mid_plat_vibra_shutdown(struct platform_device *pdev)
+{
+	
 }
 #endif
 

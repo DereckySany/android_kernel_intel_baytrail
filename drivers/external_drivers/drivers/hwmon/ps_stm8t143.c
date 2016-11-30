@@ -30,6 +30,8 @@
 #include <linux/gpio.h>
 #include <linux/acpi.h>
 #include <linux/acpi_gpio.h>
+#include <linux/lnw_gpio.h>
+
 
 /*
 * gpio pin number of output data
@@ -37,18 +39,15 @@
 *
 * Byt-cr RVP board,94 for Baylake board
 * Get from ACPI if BIOS provided
-* #define	PS_STM8T143_DATA_GPIO 	149
-* #define	PS_STM8T143_LPM_GPIO 	122
 */
+#define	SARSENSOR_OUT_GPIO 	66
+#define   SARSENSOR_MOV_OUT      68
 
-#define PS_STM8T143_DRIVER_NAME "stm8t143"
-#define PS_STM8T143_INPUT_NAME 	"stm8t143"
-
-/*Enable when ctrl gpio is ready*/
-static bool ps_lpm_enable = 0;
-
-#ifdef CONFIG_PS_STM8T143_DEBUG
-static unsigned int debug_level = 0;
+#define SARSENSOR_DRIVER_NAME "sarsensor"
+#define SARSENSOR_INPUT_NAME 	"sarsensor"
+#define CONFIG_SARSENSOR_DEBUG
+#ifdef CONFIG_SARSENSOR_DEBUG
+static unsigned int debug_level = 4;
 #define DBG_LEVEL1		1
 #define DBG_LEVEL2		2
 #define DBG_LEVEL3		3
@@ -56,7 +55,7 @@ static unsigned int debug_level = 0;
 #define SENSOR_DBG(level, ...)				\
 do {							\
 	if (level <= debug_level)			\
-		printk(KERN_DEBUG "<stm8t143>[%d]%s"	\
+		printk(KERN_DEBUG "<sarsensor>[%d]%s"	\
 			 "\n",				\
 			__LINE__, __func__,		\
 			##__VA_ARGS__);			\
@@ -66,106 +65,41 @@ do {							\
 #define SENSOR_DBG(level, ...)
 #endif
 
-struct stm8t143_data {
+struct sarsensor_data {
 	struct platform_device *pdev;
 	struct input_dev *input_dev;
 	struct mutex lock;
 	int enabled;
-	int enabled_suspend; //state before suspend
 	int gpio_data;
 	int gpio_irq;
-	int gpio_ctrl;
 };
 
-static int stm8t143_init(struct stm8t143_data *stm8t143)
+static int sarsensor_init(struct sarsensor_data *sarsensor)
 {
-	int ret = 0;
-	SENSOR_DBG(DBG_LEVEL3);
-
-	if (ps_lpm_enable) {
-		/* put PS sensor into low power mode if not used */
-		ret = gpio_direction_output(stm8t143->gpio_ctrl, 1);
-		if (ret < 0) {
-			dev_err(&stm8t143->pdev->dev,
-			"stm8t143 gpio direction output 0 failed with %d\n", ret);
-		}
-	}
-	return ret;
+	return 0;
 }
 
-static void stm8t143_get_data(struct stm8t143_data *stm8t143, s32 *data)
+static void sarsensor_get_data(struct sarsensor_data *sarsensor, s32 *data)
 {
-	*data = gpio_get_value(stm8t143->gpio_data);
-	SENSOR_DBG(DBG_LEVEL2, "data=%d\n", *data);
+	*data = gpio_get_value(SARSENSOR_OUT_GPIO);
+	SENSOR_DBG(DBG_LEVEL2, "liumiao:data=%d\n", *data);
 }
 
 /*since hw is always in work, so enable&disable in sw itself*/
-static void stm8t143_enable(struct stm8t143_data *stm8t143)
-{
-	int data;
-	int ret;
 
-	SENSOR_DBG(DBG_LEVEL3);
-
-	mutex_lock(&stm8t143->lock);
-	//gpio_set_value(stm8t143->gpio_data, 0);
-	if (!stm8t143->enabled) {
-		int irq = gpio_to_irq(stm8t143->gpio_irq);
-		enable_irq(irq);
-		if (ps_lpm_enable) {
-			ret = gpio_direction_output(stm8t143->gpio_ctrl, 0);
-			if (ret < 0) {
-				dev_err(&stm8t143->pdev->dev,
-				"stm8t143 gpio direction output 0 failed with %d\n", ret);
-			}
-		}
-		stm8t143->enabled = 1;
-	}
-	mutex_unlock(&stm8t143->lock);
-
-	/*input first data*/
-	stm8t143_get_data(stm8t143, &data);
-	input_report_abs(stm8t143->input_dev, ABS_X, data);
-	input_sync(stm8t143->input_dev);
-}
-
-static void stm8t143_disable(struct stm8t143_data *stm8t143)
-{
-	int ret;
-	SENSOR_DBG(DBG_LEVEL3);
-
-	mutex_lock(&stm8t143->lock);
-	//gpio_set_value(stm8t143->gpio_data, 1);
-	if (stm8t143->enabled) {
-		int irq = gpio_to_irq(stm8t143->gpio_irq);
-		if (ps_lpm_enable) {
-			/* the CTRL pin is tied high for Halt conversion mode */
-			ret = gpio_direction_output(stm8t143->gpio_ctrl, 1);
-			if (ret < 0) {
-				dev_err(&stm8t143->pdev->dev,
-				"stm8t143 gpio direction output 0 failed with %d\n", ret);
-			}
-		}
-		disable_irq(irq);
-		stm8t143->enabled = 0;
-	}
-
-	mutex_unlock(&stm8t143->lock);
-}
-
-static irqreturn_t stm8t143_irq(int irq, void *dev_id)
-{
-	struct stm8t143_data *stm8t143 = (struct stm8t143_data*)dev_id;
+static irqreturn_t sarsensor_irq(int irq, void *dev_id)
+{      SENSOR_DBG(DBG_LEVEL3);
+	struct sarsensor_data *sarsensor = (struct sarsensor_data*)dev_id;
 	int data;
 
-	stm8t143_get_data(stm8t143, &data);
-	input_report_abs(stm8t143->input_dev, ABS_X, data);
-	input_sync(stm8t143->input_dev);
+	sarsensor_get_data(sarsensor, &data);
+	input_report_abs(sarsensor->input_dev, ABS_X, data);
+	input_sync(sarsensor->input_dev);
 
 	return IRQ_HANDLED;
 }
 
-static int stm8t143_input_init(struct stm8t143_data *stm8t143)
+static int sarsensor_input_init(struct sarsensor_data *sarsensor)
 {
 	int ret;
 	struct input_dev *input;
@@ -174,196 +108,140 @@ static int stm8t143_input_init(struct stm8t143_data *stm8t143)
 
 	input = input_allocate_device();
 	if (!input) {
-		dev_err(&stm8t143->pdev->dev, "input device allocate failed\n");
+		dev_err(&sarsensor->pdev->dev, "input device allocate failed\n");
 		return -ENOMEM;
 	}
-	input->name = PS_STM8T143_INPUT_NAME;
-	input->dev.parent = &stm8t143->pdev->dev;
+	input->name = SARSENSOR_INPUT_NAME;
+	input->dev.parent = &sarsensor->pdev->dev;
 	set_bit(EV_ABS, input->evbit);
 	set_bit(ABS_X, input->absbit);
 
 	ret = input_register_device(input);
 	if (ret) {
-		dev_err(&stm8t143->pdev->dev,
+		dev_err(&sarsensor->pdev->dev,
 			"unable to register input device %s:%d\n",
 			input->name, ret);
 		goto err;
 	}
 
-	stm8t143->input_dev = input;
+	sarsensor->input_dev = input;
 	return 0;
 err:
 	input_free_device(input);
 	return ret;
 }
 
-static int stm8t143_get_data_init(struct stm8t143_data *stm8t143)
+static int sarsensor_get_data_init(struct sarsensor_data *sarsensor)
 {
 	int ret;
 	int irq;
+	int init_gpio_value;
+       SENSOR_DBG(DBG_LEVEL3);
+       sarsensor->gpio_irq=SARSENSOR_OUT_GPIO;
+	if(gpio_request(sarsensor->gpio_irq, SARSENSOR_DRIVER_NAME))
+		{printk("sarsensor:Failed to request GPIO !\n");
+	};
+	lnw_gpio_set_pininfo(sarsensor->gpio_irq,0x5,"pullup");
+	gpio_direction_input(sarsensor->gpio_irq);
 
-	gpio_direction_input(stm8t143->gpio_irq);
-	irq = gpio_to_irq(stm8t143->gpio_irq);
-
-	irq_set_status_flags(irq, IRQ_NOAUTOEN);
-	ret = request_threaded_irq(irq, NULL, stm8t143_irq,
+	init_gpio_value=gpio_get_value(sarsensor->gpio_irq);//lm for test
+	printk("liumiao_init_gpio=%d\n",init_gpio_value);
+	
+	
+	irq = gpio_to_irq(sarsensor->gpio_irq);
+       //printk("liumiao:%d\n",sarsensor->gpio_irq);
+       
+	ret = request_threaded_irq(irq, NULL, sarsensor_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-			PS_STM8T143_DRIVER_NAME, stm8t143);
-	if (ret < 0) {
-		gpio_free(stm8t143->gpio_irq);
-		dev_err(&stm8t143->pdev->dev,
+			SARSENSOR_DRIVER_NAME, sarsensor);
+	if (ret < 0) {printk("liumiao request err");
+		gpio_free(sarsensor->gpio_irq);
+		dev_err(&sarsensor->pdev->dev,
 			"Fail to request irq:%d ret=%d\n", irq, ret);
 	}
 	return ret;
 }
 
-static ssize_t stm8t143_lpm_enable_show(struct device *dev,
+static ssize_t sarsensor_enable_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", ps_lpm_enable);
-}
-
-static ssize_t stm8t143_lpm_enable_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	unsigned long val;
-	struct stm8t143_data *stm8t143 = dev_get_drvdata(dev);
-
-	if (kstrtoul(buf, 0, &val))
-		return -EINVAL;
-
-	if (val) {
-		if (stm8t143->gpio_ctrl >= 0)
-			ps_lpm_enable = 1;
-	} else
-		ps_lpm_enable = 0;
-
-	return count;
-}
-
-static ssize_t stm8t143_enable_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct stm8t143_data *stm8t143 = dev_get_drvdata(dev);
+	struct sarsensor_data *sarsensor = dev_get_drvdata(dev);
 	int enabled;
 
-	enabled = stm8t143->enabled;
-	return sprintf(buf, "%d\n", stm8t143->enabled);
+	enabled = sarsensor->enabled;
+	return sprintf(buf, "%d\n", sarsensor->enabled);
 }
 
-static ssize_t stm8t143_enable_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct stm8t143_data *stm8t143 = dev_get_drvdata(dev);
-	unsigned long val;
-
-	if (kstrtoul(buf, 0, &val))
-		return -EINVAL;
-
-	if (val)
-		stm8t143_enable(stm8t143);
-	else
-		stm8t143_disable(stm8t143);
-
-	return count;
-}
 
 /*Avoid file operation error in HAL layer*/
-static ssize_t stm8t143_delay_show(struct device *dev,
+static ssize_t sarsensor_delay_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	int delay = -1;
 	return sprintf(buf, "%d\n", delay);
 }
 
-static ssize_t stm8t143_delay_store(struct device *dev,
+static ssize_t sarsensor_delay_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	return count;
 }
 
-static DEVICE_ATTR(poll, S_IRUGO|S_IWUSR, stm8t143_delay_show,
-		stm8t143_delay_store);
-static DEVICE_ATTR(enable, S_IRUGO|S_IWUSR, stm8t143_enable_show,
-		stm8t143_enable_store);
-static DEVICE_ATTR(lpm_enable, S_IRUGO|S_IWUSR, stm8t143_lpm_enable_show,
-		stm8t143_lpm_enable_store);
+static DEVICE_ATTR(poll, S_IRUGO|S_IWUSR, sarsensor_delay_show,
+		sarsensor_delay_store);
+static DEVICE_ATTR(enable, S_IRUGO|S_IWUSR, sarsensor_enable_show,
+		NULL);
 
-static struct attribute *stm8t143_attributes[] = {
+static struct attribute *sarsensor_attributes[] = {
 	&dev_attr_poll.attr,
 	&dev_attr_enable.attr,
-	&dev_attr_lpm_enable.attr,
 	NULL
 };
 
-static struct attribute_group stm8t143_attribute_group = {
-	.attrs = stm8t143_attributes
+static struct attribute_group sarsensor_attribute_group = {
+	.attrs = sarsensor_attributes
 };
 
-static int stm8t143_probe(struct platform_device *pdev)
-{
+static int sarsensor_probe(struct platform_device *pdev)
+{     printk("%s:start\n",__func__);
 	int err;
-	struct stm8t143_data *stm8t143;
+	struct sarsensor_data *sarsensor;
 
 	SENSOR_DBG(DBG_LEVEL3);
 
-	stm8t143 = kzalloc(sizeof(struct stm8t143_data), GFP_KERNEL);
-	if (!stm8t143) {
+	sarsensor = kzalloc(sizeof(struct sarsensor_data), GFP_KERNEL);
+	if (!sarsensor) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
 	}
-	platform_set_drvdata(pdev, stm8t143);
+	platform_set_drvdata(pdev, sarsensor);
 
-	stm8t143->pdev = pdev;
-	mutex_init(&stm8t143->lock);
-	stm8t143->gpio_irq = acpi_get_gpio_by_index(&pdev->dev, 0, NULL);
-	if (stm8t143->gpio_irq < 0) {
-		dev_err(&pdev->dev, "Fail to get irq gpio pin by ACPI\n");
-		err = -EINVAL;
-		goto err_gpio;
-	}
-	err = gpio_request(stm8t143->gpio_irq, PS_STM8T143_DRIVER_NAME);
+	sarsensor->pdev = pdev;
+	mutex_init(&sarsensor->lock);
+	
+	sarsensor->gpio_data = SARSENSOR_OUT_GPIO;
+
+	SENSOR_DBG(DBG_LEVEL3, "data gpio:%d\n", sarsensor->gpio_data);
+
+	err = sarsensor_init(sarsensor);
 	if (err < 0) {
-		dev_err(&pdev->dev, "stm8t143 gpio request failed with %d\n", err);
-		goto err_gpio;
-	}
-	stm8t143->gpio_data = stm8t143->gpio_irq;
-
-	stm8t143->gpio_ctrl = acpi_get_gpio_by_index(&pdev->dev, 1, NULL);
-	if (stm8t143->gpio_ctrl < 0) {
-		dev_warn(&pdev->dev, "Fail to get ctrl gpio pin by ACPI\n");
-	} else {
-		err = gpio_request(stm8t143->gpio_ctrl, PS_STM8T143_DRIVER_NAME);
-		if (err < 0) {
-			dev_err(&pdev->dev, "stm8t143 gpio request failed with %d\n", err);
-			stm8t143->gpio_ctrl = -1;
-		}
-	}
-	if (stm8t143->gpio_ctrl >= 0)
-		ps_lpm_enable = 1;
-
-	SENSOR_DBG(DBG_LEVEL3, "data gpio:%d\n", stm8t143->gpio_data);
-	SENSOR_DBG(DBG_LEVEL3, "ctrl gpio:%d\n", stm8t143->gpio_ctrl);
-
-	err = stm8t143_init(stm8t143);
-	if (err < 0) {
-		dev_err(&pdev->dev, "stm8t143_initchip failed with %d\n", err);
+		dev_err(&pdev->dev, "sarsensor_initchip failed with %d\n", err);
 		goto err_init;
 	}
 
-	err = stm8t143_input_init(stm8t143);
+	err = sarsensor_input_init(sarsensor);
 	if (err < 0) {
 		dev_err(&pdev->dev, "input init error\n");
 		goto err_init;
 	}
 
-	err = stm8t143_get_data_init(stm8t143);
+	err = sarsensor_get_data_init(sarsensor);
 	if (err < 0) {
 		dev_err(&pdev->dev, "input init error\n");
 		goto err_data_init;
 	}
 
-	err = sysfs_create_group(&pdev->dev.kobj, &stm8t143_attribute_group);
+	err = sysfs_create_group(&pdev->dev.kobj, &sarsensor_attribute_group);
 	if (err) {
 		dev_err(&pdev->dev, "sysfs can not create group\n");
 		goto err_sys_init;
@@ -372,97 +250,96 @@ static int stm8t143_probe(struct platform_device *pdev)
 	return 0;
 
 err_sys_init:
-	free_irq(stm8t143->gpio_irq, stm8t143);
+	free_irq(sarsensor->gpio_irq, sarsensor);
+	gpio_free(sarsensor->gpio_irq);
 err_data_init:
-	input_unregister_device(stm8t143->input_dev);
+	input_unregister_device(sarsensor->input_dev);
 err_init:
-	gpio_free(stm8t143->gpio_irq);
-	if (stm8t143->gpio_ctrl >= 0)
-		gpio_free(stm8t143->gpio_ctrl);
-err_gpio:
-	kfree(stm8t143);
+	kfree(sarsensor);
 	return err;
 }
 
-static int stm8t143_remove(struct platform_device *pdev)
+static int sarsensor_remove(struct platform_device *pdev)
 {
-	struct stm8t143_data *stm8t143 = platform_get_drvdata(pdev);
-	int irq = gpio_to_irq(stm8t143->gpio_irq);
+	struct sarsensor_data *sarsensor = platform_get_drvdata(pdev);
+	int irq = gpio_to_irq(sarsensor->gpio_irq);
 
-	stm8t143_disable(stm8t143);
-	sysfs_remove_group(&pdev->dev.kobj, &stm8t143_attribute_group);
-	input_unregister_device(stm8t143->input_dev);
-	free_irq(irq, stm8t143);
-	gpio_free(stm8t143->gpio_irq);
-	if (stm8t143->gpio_ctrl >= 0)
-		gpio_free(stm8t143->gpio_ctrl);
-	kfree(stm8t143);
+	sysfs_remove_group(&pdev->dev.kobj, &sarsensor_attribute_group);
+	input_unregister_device(sarsensor->input_dev);
+	free_irq(irq, sarsensor);
+	gpio_free(sarsensor->gpio_irq);
+	kfree(sarsensor);
 	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int stm8t143_suspend(struct device *dev)
+static int sarsensor_suspend(struct device *dev)
 {
-	struct stm8t143_data *stm8t143 = dev_get_drvdata(dev);
+	struct sarsensor_data *sarsensor = dev_get_drvdata(dev);
 
-	stm8t143->enabled_suspend = stm8t143->enabled;
-	stm8t143_disable(stm8t143);
+	
 	return 0;
 }
 
-static int stm8t143_resume(struct device *dev)
+static int sarsensor_resume(struct device *dev)
 {
-	struct stm8t143_data *stm8t143 = dev_get_drvdata(dev);
+	struct sarsensor_data *sarsensor = dev_get_drvdata(dev);
 
-	if (stm8t143->enabled_suspend)
-		stm8t143_enable(stm8t143);
+	
 	return 0;
 }
-static SIMPLE_DEV_PM_OPS(stm8t143_pm, stm8t143_suspend, stm8t143_resume);
+static SIMPLE_DEV_PM_OPS(sarsensor_pm, sarsensor_suspend, sarsensor_resume);
 #endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_ACPI
-static const struct acpi_device_id ps_stm8t143_acpi_ids[] = {
+static const struct acpi_device_id ps_sarsensor_acpi_ids[] = {
 	{ "SRCL0001", 0 },
 	{ }
 };
-MODULE_DEVICE_TABLE(acpi, ps_stm8t143_acpi_ids);
+MODULE_DEVICE_TABLE(acpi, ps_sarsensor_acpi_ids);
 #endif
+static struct platform_device sarsensor_device = {
+         .name    = "sarsensor",
+};
 
-static struct platform_driver ps_stm8t143_driver = {
-	.probe		= stm8t143_probe,
-	.remove		= stm8t143_remove,
+static struct platform_driver sarsensor_driver = {
+	.probe		= sarsensor_probe,
+	.remove		= sarsensor_remove,
 	.driver	= {
-		.name	= PS_STM8T143_DRIVER_NAME,
+		.name	= SARSENSOR_DRIVER_NAME,
 		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM_SLEEP
-		.pm	= &stm8t143_pm,
+		.pm	= &sarsensor_pm,
 #endif
 #ifdef CONFIG_ACPI
-		.acpi_match_table = ACPI_PTR(ps_stm8t143_acpi_ids),
+		.acpi_match_table = ACPI_PTR(ps_sarsensor_acpi_ids),
 #endif
 	},
 };
 
-static int __init ps_stm8t143_init(void)
+static int __init sar_sensor_init(void)
 {
+        printk("%s:start\n",__func__);
+        
 	int ret;
-
-	ret = platform_driver_register(&ps_stm8t143_driver);
+       ret=platform_device_register(&sarsensor_device);
+       if(ret < 0)
+       	printk(KERN_ERR "Fail to register  sarsensor device\n");
+	ret = platform_driver_register(&sarsensor_driver);
 	if (ret < 0)
-		printk(KERN_ERR "Fail to register ps stm8t143 driver\n");
+		printk(KERN_ERR "Fail to register  sarsensor driver\n");
 
 	return ret;
 }
 
-static void __exit ps_stm8t143_exit(void)
+static void __exit sar_sensor_exit(void)
 {
-	platform_driver_unregister(&ps_stm8t143_driver);
+	platform_driver_unregister(&sarsensor_driver);
 }
 
-module_init(ps_stm8t143_init);
-module_exit(ps_stm8t143_exit);
+module_init(sar_sensor_init);
+module_exit(sar_sensor_exit);
 
-MODULE_AUTHOR("IO&Sensor");
-MODULE_DESCRIPTION("Proximity Sensor STM8T143");
+MODULE_AUTHOR("LIUMIAO");
+MODULE_DESCRIPTION("SAR SENSOR");
 MODULE_LICENSE("GPL V2");
