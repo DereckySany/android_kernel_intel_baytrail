@@ -90,7 +90,7 @@
 #include "anr/anr_2/ia_css_anr2.host.h"
 #include "bh/bh_2/ia_css_bh.host.h"
 #include "cnr/cnr_2/ia_css_cnr2.host.h"
-#include "ctc/ctc1_5/ia_css_ctc1_5.host.h"
+#include "ctc/ctc_2/ia_css_ctc2.host.h"
 #include "de/de_2/ia_css_de2.host.h"
 #include "gc/gc_2/ia_css_gc2.host.h"
 #include "sdis/sdis_2/ia_css_sdis2.host.h"
@@ -111,9 +111,6 @@
 #include <components/stats_3a/src/host/stats_3a.host.h>
 #include <components/include/components_types.host.h>                /* Skylake kernel settings structs */
 #include <components/include/components.host.h>                /* Skylake kernel settings structs */
-#if defined(HAS_OUTPUT_SYSTEM)
-#include <components/output_system/sc_output_system_1.0/host/output_system.host.h>
-#endif
 #endif
 
 #include "sh_css_frac.h"
@@ -1257,14 +1254,8 @@ static enum ia_css_err
 free_ia_css_isp_parameter_set_info(hrt_vaddress ptr);
 
 static enum ia_css_err
-sh_css_params_write_to_ddr_pipe_internal(
-		struct ia_css_pipe *pipe,
-		const struct ia_css_pipeline_stage *stage,
-		struct sh_css_ddr_address_map *ddr_map,
-		struct sh_css_ddr_address_map_size *ddr_map_size);
-
-static enum ia_css_err
 sh_css_params_write_to_ddr_internal(
+		struct ia_css_pipe *pipe,
 		unsigned pipe_id,
 		struct ia_css_isp_parameters *params,
 		const struct ia_css_pipeline_stage *stage,
@@ -2107,7 +2098,7 @@ ia_css_get_4a_statistics(struct ia_css_4a_statistics *host_stats,
 	if (ae_join_buffers == 1) {
 		mmgr_load(ae_buff_1_ddr_addr,
 			  (void *)&(ae_raw_buffer_s),
-			  sizeof(ae_private_raw_buffer_aligned_t));
+			  sizeof(ae_public_raw_buffer_t));
 	}
 
 	mmgr_load(awb_fr_ddr_addr,
@@ -3064,6 +3055,9 @@ ia_css_metadata_free_multiple(unsigned int num_bufs, struct ia_css_metadata **bu
 
 unsigned g_param_buffer_dequeue_count = 0;
 unsigned g_param_buffer_enqueue_count = 0;
+struct sh_css_ddr_address_map g_isp_addr_rec[2];
+bool g_isp_addr_chk_flag = false;
+unsigned long g_isp_addr_rec_init_cnt = 0;
 
 enum ia_css_err
 ia_css_stream_isp_parameters_init(struct ia_css_stream *stream)
@@ -3074,14 +3068,13 @@ ia_css_stream_isp_parameters_init(struct ia_css_stream *stream)
 	struct sh_css_ddr_address_map *ddr_ptrs;
 	struct sh_css_ddr_address_map_size *ddr_ptrs_size;
 	struct ia_css_isp_parameters *params;
+	g_isp_addr_rec_init_cnt = 0;
+	memset(&g_isp_addr_rec[0], 0, 2 * sizeof(struct sh_css_ddr_address_map));
 
 	assert(stream != NULL);
+
 	IA_CSS_ENTER_PRIVATE("void");
 
-	if (stream == NULL) {
-		IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_INVALID_ARGUMENTS);
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
-	}
 	/* TMP: tracking of paramsets */
 	g_param_buffer_dequeue_count = 0;
 	g_param_buffer_enqueue_count = 0;
@@ -3206,9 +3199,6 @@ sh_css_create_isp_params(struct ia_css_stream *stream)
 					mmgr_malloc(sizeof(struct isp_acc_param)));
 	succ &= (ddr_ptrs->acc_cluster_params_for_sp != mmgr_NULL);
 	acc_cluster_set_default_params(stream);
-#if defined(HAS_OUTPUT_SYSTEM)
-	ia_css_osys_set_default(stream);
-#endif
 #else
 	(void)stream;
 #endif
@@ -3554,6 +3544,7 @@ ia_css_stream_isp_parameters_uninit(struct ia_css_stream *stream)
 
 #if defined(IS_ISP_2500_SYSTEM)
 	destroy_acc_cluster(stream);
+	free_dvs_2500_6axis_table();
 #endif
 
 	/* Free up theDVS table memory blocks before recomputing new table */
@@ -3862,6 +3853,25 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 		assert(isp_pipe_version == ia_css_pipe_get_isp_pipe_version(curr_pipe->stream->pipes[i]));
 	}
 
+#if defined(IS_ISP_2500_SYSTEM)
+	pipe_num = ia_css_pipe_get_pipe_num(curr_pipe);
+	if (ia_css_pipeline_is_mapped(pipe_num) == false) {
+		thread_id = 0;
+	} else
+	{
+		ia_css_pipeline_get_sp_thread_id(pipe_num, &thread_id);
+	}
+	sh_css_acc_cluster_parameters = &(sh_css_acc_cluster_parameters_pool[thread_id]);
+	if (sh_css_acc_cluster_parameters == NULL) {
+		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+	}
+	err = sh_css_process_acc_cluster_parameters(curr_pipe, sh_css_acc_cluster_parameters, &acc_cluster_params_changed);
+	if (err != IA_CSS_SUCCESS) {
+		IA_CSS_LOG("sh_css_process_acc_cluster_parameters() returned INVALID KERNEL CONFIGURATION\n");
+		IA_CSS_LEAVE_ERR_PRIVATE(err);
+		return err;
+	}
+#endif
 
 	/* now make the map available to the sp */
 	if (!commit) {
@@ -3885,21 +3895,6 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 		pipeline = ia_css_pipe_get_pipeline(pipe);
 		pipe_num = ia_css_pipe_get_pipe_num(pipe);
 		ia_css_pipeline_get_sp_thread_id(pipe_num, &thread_id);
-#if defined(IS_ISP_2500_SYSTEM)
-		if (ia_css_pipeline_is_mapped(pipe_num) == false) {
-			thread_id = 0;
-		}
-		sh_css_acc_cluster_parameters = &(sh_css_acc_cluster_parameters_pool[thread_id]);
-		if (sh_css_acc_cluster_parameters == NULL) {
-			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-		}
-		err = sh_css_process_acc_cluster_parameters(pipe, sh_css_acc_cluster_parameters, &acc_cluster_params_changed);
-		if (err != IA_CSS_SUCCESS) {
-			IA_CSS_LOG("sh_css_process_acc_cluster_parameters() returned INVALID KERNEL CONFIGURATION\n");
-			IA_CSS_LEAVE_ERR_PRIVATE(err);
-			return err;
-		}
-#endif
 
 #if defined(SH_CSS_ENABLE_PER_FRAME_PARAMS)
 		ia_css_query_internal_queue_id(params->output_frame
@@ -3945,15 +3940,8 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 					stage, params,
 					isp_pipe_version, raw_bit_depth);
 
-			err = sh_css_params_write_to_ddr_pipe_internal(
-					pipe,
-					stage,
-					cur_map,
-					cur_map_size);
-			if (err != IA_CSS_SUCCESS)
-				break;
-
 			err = sh_css_params_write_to_ddr_internal(
+					pipe,
 					pipeline->pipe_id,
 					params,
 					stage,
@@ -4038,7 +4026,12 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 			 * parameter sets and dequeued sets
 			 */
 			g_param_buffer_enqueue_count++;
-			assert(g_param_buffer_enqueue_count < g_param_buffer_dequeue_count+50);
+			/* WORKAROUND: replace assertion check by just warning log, the BZ
+			 * is tracked by ICG BZ 4328. */
+			if (g_param_buffer_enqueue_count >= g_param_buffer_dequeue_count+50)
+				IA_CSS_WARNING("param buffer enqueue count %d, dequeue count %d\n",
+									g_param_buffer_enqueue_count,
+									g_param_buffer_dequeue_count);
 
 			/*
 			 * Tell the SP which queues are not empty,
@@ -4085,43 +4078,8 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 }
 
 static enum ia_css_err
-sh_css_params_write_to_ddr_pipe_internal(
-	struct ia_css_pipe *pipe,
-	const struct ia_css_pipeline_stage *stage,
-	struct sh_css_ddr_address_map *ddr_map,
-	struct sh_css_ddr_address_map_size *ddr_map_size)
-{
-#if !defined(IS_ISP_2500_SYSTEM)
-	(void)pipe;
-	(void)stage;
-	(void)ddr_map;
-	(void)ddr_map_size;
-#else
-	enum ia_css_err err;
-	const struct ia_css_binary *binary;
-
-	IA_CSS_ENTER_PRIVATE("");
-	assert(ddr_map != NULL);
-	assert(ddr_map_size != NULL);
-	assert(stage != NULL);
-
-
-	binary = stage->binary;
-	assert(binary != NULL);
-
-	/* pass call to product specific to handle copying of tables to DDR */
-	err = sh_css_params_to_ddr(pipe, binary, ddr_map, ddr_map_size);
-	if (err != IA_CSS_SUCCESS) {
-		IA_CSS_LEAVE_ERR_PRIVATE(err);
-		return err;
-	}
-#endif
-	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
-	return IA_CSS_SUCCESS;
-}
-
-static enum ia_css_err
 sh_css_params_write_to_ddr_internal(
+	struct ia_css_pipe *pipe,
 	unsigned pipe_id,
 	struct ia_css_isp_parameters *params,
 	const struct ia_css_pipeline_stage *stage,
@@ -4138,6 +4096,7 @@ sh_css_params_write_to_ddr_internal(
 #if !defined(IS_ISP_2500_SYSTEM)
 	/* struct is > 128 bytes so it should not be on stack (see checkpatch) */
 	static struct ia_css_macc_table converted_macc_table;
+	(void)pipe;
 #endif
 
 	IA_CSS_ENTER_PRIVATE("void");
@@ -4149,6 +4108,18 @@ sh_css_params_write_to_ddr_internal(
 	binary = stage->binary;
 	assert(binary != NULL);
 
+#if defined(IS_ISP_2500_SYSTEM)
+	(void)pipe_id;
+	(void)stage;
+	(void)buff_realloced;
+
+	/* pass call to product specific to handle copying of tables to DDR */
+	err = sh_css_params_to_ddr(pipe, binary, ddr_map, ddr_map_size);
+	if (err != IA_CSS_SUCCESS) {
+		IA_CSS_LEAVE_ERR_PRIVATE(err);
+		return err;
+	}
+#endif
 
 	stage_num = stage->stage_num;
 
@@ -4515,35 +4486,24 @@ sh_css_params_write_to_ddr_internal(
  *    (loops through the stages in a pipe to reconfigure settings)
  */
 enum ia_css_err
-sh_css_params_write_to_ddr(struct ia_css_pipe *pipe,
+sh_css_params_write_to_ddr(struct ia_css_stream *stream,
 			   struct ia_css_pipeline_stage *stage)
 {
 	int i;
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_isp_parameters *params;
-	struct ia_css_stream *stream;
-	struct ia_css_pipeline *pipeline;
 
 	IA_CSS_ENTER_PRIVATE("void");
-	assert(pipe != NULL);
-	stream = pipe->stream;
+	assert(stream != NULL);
+
 	params = stream->isp_params_configs;
 
-	pipeline = ia_css_pipe_get_pipeline(pipe);
-	err = sh_css_params_write_to_ddr_pipe_internal(
-			pipe,
-			stage,
-			&params->pipe_ddr_ptrs[pipeline->pipe_id],
-			&params->pipe_ddr_ptrs_size[pipeline->pipe_id]);
-	if (err != IA_CSS_SUCCESS) {
-		IA_CSS_LEAVE_ERR_PRIVATE(err);
-		return err;
-	}
 	for (i = 0; i < stream->num_pipes; i++) {
 		struct ia_css_pipe *pipe = stream->pipes[i];
 		struct ia_css_pipeline *pipeline;
 		pipeline = ia_css_pipe_get_pipeline(pipe);
 		err = sh_css_params_write_to_ddr_internal(
+				pipe,
 				pipeline->pipe_id,
 				params,
 				stage,
@@ -4720,10 +4680,13 @@ static enum ia_css_err write_ia_css_isp_parameter_set_info_to_ddr(
 	*out = ia_css_refcount_increment(IA_CSS_REFCOUNT_PARAM_SET_POOL, mmgr_malloc(
 				sizeof(struct ia_css_isp_parameter_set_info)));
 	succ = (*out != mmgr_NULL);
-	if (succ)
+	if (succ){
 		mmgr_store(*out,
 			me, sizeof(struct ia_css_isp_parameter_set_info));
-	else
+		if (g_isp_addr_rec_init_cnt <= 1)
+			memcpy(&g_isp_addr_rec[g_isp_addr_rec_init_cnt], me, sizeof(struct sh_css_ddr_address_map));
+		g_isp_addr_rec_init_cnt++;
+	}else
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
@@ -4737,11 +4700,41 @@ free_ia_css_isp_parameter_set_info(
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_isp_parameter_set_info isp_params_info;
 	unsigned int i;
+        bool check_ptr = true;
 	hrt_vaddress *addrs = (hrt_vaddress *)&isp_params_info.mem_map;
+        hrt_vaddress *addrs_check = (hrt_vaddress *)&g_isp_addr_rec;
 
 	IA_CSS_ENTER_PRIVATE("void");
 
 	mmgr_load(ptr, &isp_params_info.mem_map, sizeof(struct sh_css_ddr_address_map));
+
+	if (g_isp_addr_chk_flag == true && addrs[0] != addrs_check[0]) {
+		pr_err("[DEBUG] ptr: 0x%x, map = addrs[0] = 0x%x, addrs_check[0]: 0x%x, g_isp_addr_rec_init_cnt: %lu\n", ptr, addrs[0], addrs_check[0], g_isp_addr_rec_init_cnt);
+		pr_err("[DEBUG] WA for kernel panic!!!!!\n");
+		memcpy(&isp_params_info.mem_map, &g_isp_addr_rec[0], sizeof(struct sh_css_ddr_address_map));
+	}
+
+	if (g_isp_addr_rec_init_cnt < 2 && g_isp_addr_chk_flag == true)
+		g_isp_addr_chk_flag = false;
+	else if (g_isp_addr_chk_flag == true) {
+		memcpy(&g_isp_addr_rec[0], &g_isp_addr_rec[1], sizeof(struct sh_css_ddr_address_map));
+		g_isp_addr_rec_init_cnt--;
+	}
+
+        /* check ptr & WA */
+	for (i = 0; i < (sizeof(struct sh_css_ddr_address_map_size)/
+						sizeof(size_t)); i++) {
+		if (addrs[i] == mmgr_NULL)
+			continue;
+		check_ptr = ia_css_refcount_decrement_check(IA_CSS_REFCOUNT_PARAM_BUFFER, addrs[i]);
+                if(!check_ptr){
+                        pr_err("[DEBUG] WA for kernel panic (NULL)!!!!!\n");
+                        check_ptr = true;
+		        memcpy(&isp_params_info.mem_map, &g_isp_addr_rec[0], sizeof(struct sh_css_ddr_address_map));
+                        break;
+                }
+	}
+
 	/* copy map using size info */
 	for (i = 0; i < (sizeof(struct sh_css_ddr_address_map_size)/
 						sizeof(size_t)); i++) {

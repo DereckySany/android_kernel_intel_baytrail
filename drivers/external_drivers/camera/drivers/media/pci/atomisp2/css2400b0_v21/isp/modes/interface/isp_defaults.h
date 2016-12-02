@@ -84,9 +84,6 @@
 
 #if !defined(ENABLE_OUTPUT)
 #define ENABLE_OUTPUT           0
-#endif
-
-#if !defined(NUM_OUTPUT_PINS)
 #define NUM_OUTPUT_PINS         0
 #endif
 

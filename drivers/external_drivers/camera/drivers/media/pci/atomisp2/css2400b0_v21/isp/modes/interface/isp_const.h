@@ -21,6 +21,7 @@
  * estoppel or otherwise. Any license under such intellectual property rights
  * must be express and approved by Intel in writing.
  */
+
 #ifndef _COMMON_ISP_CONST_H_
 #define _COMMON_ISP_CONST_H_
 
@@ -107,12 +108,10 @@
 /* skycam product pipelines */
 #define SH_CSS_BINARY_ID_SC_PREVIEW_B0			    100
 #define SH_CSS_BINARY_ID_PRIMARY                            101
-#define SH_CSS_BINARY_ID_PRIMARY_PP                         102
-#define SH_CSS_BINARY_ID_VIDEO                              103
-#define SH_CSS_BINARY_ID_SC_VIDEO_HIGH_RESOLUTION           104
-#define SH_CSS_BINARY_ID_VIDEO_C0                           105
-#define SH_CSS_BINARY_ID_SC_VIDEO_C0_HIGH_RESOLUTION        106
-#define SH_CSS_BINARY_ID_SC_VIDEO_HIRES                     107
+#define SH_CSS_BINARY_ID_VIDEO                              102
+#define SH_CSS_BINARY_ID_SC_VIDEO_HIGH_RESOLUTION           103
+#define SH_CSS_BINARY_ID_VIDEO_C0                           104
+#define SH_CSS_BINARY_ID_SC_VIDEO_C0_HIGH_RESOLUTION        105
 
 /* skycam kerneltest pipelines */
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_NORM              120
@@ -129,10 +128,10 @@
 #define SH_CSS_BINARY_ID_VIDEO_TEST_ACC_YUVP2               131
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_REF               132
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_REF_STRIPED       133
-#define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_XNR_REF           134
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_DVS               135
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_XNR               136
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_XNR_STRIPED       137
+#define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_TNR               138
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_TNR_BLOCK         139
 #define SH_CSS_BINARY_ID_VIDEO_PARTIALPIPE_INPUTCOR_FULL    140
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_ACC_AE            141
@@ -148,6 +147,7 @@
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_DVS_STRIPED       151
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_OBGRID_STRIPED    152
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_BDS_DVS_STRIPED   153
+#define SH_CSS_BINARY_ID_DVS_STRIPED_YUV_IN                 154
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_COPY_YUV          155
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_COPY_YUV_BLOCK    156
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_COPY_YUV16_BLOCK  157
@@ -157,11 +157,8 @@
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_OUTPUT_YUV        161
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_OUTPUT_YUV_16     162
 #define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_OUTPUT_SPLIT      163
-#define SH_CSS_BINARY_ID_VIDEO_KERNELTEST_OUTPUT_SYSTEM_STRIPED 164
-
 
 /* skycam partial test pipelines*/
-#define SH_CSS_BINARY_ID_IF_TO_OSYS_NO_XNR_DVS              199
 #define SH_CSS_BINARY_ID_IF_TO_YUVP2_NO_ISP_EXITS           200
 #define SH_CSS_BINARY_ID_IF_TO_DPC                          201
 #define SH_CSS_BINARY_ID_IF_TO_BDS                          202
@@ -198,7 +195,6 @@
 #define SH_CSS_BINARY_ID_IF_TO_BDS_RGBP_DVS_STATS           233
 #define SH_CSS_BINARY_ID_IF_TO_YUVP2_NO_DPC_OB              234
 #define SH_CSS_BINARY_ID_IF_TO_BDS_RGBP_DVS_STATS_STRIPED   235
-#define SH_CSS_BINARY_ID_IF_TO_REF                          236
 #define SH_CSS_BINARY_ID_IF_TO_DVS_STRIPED                  237
 #define SH_CSS_BINARY_ID_IF_TO_YUVP2_STRIPED                238
 #define SH_CSS_BINARY_ID_IF_TO_YUVP1_STRIPED                239
@@ -214,17 +210,6 @@
 #define SH_CSS_BINARY_ID_IF_TO_TNR_NO_DVS                   249
 #define SH_CSS_BINARY_ID_IF_TO_TNR_NO_DVS_STRIPED           250
 #define SH_CSS_BINARY_ID_IF_TO_TNR_NO_DVS_STATS_C0          251
-#define SH_CSS_BINARY_ID_SC_PRIMARY_SINGLE_STAGE            252
-#define SH_CSS_BINARY_ID_COPY_KERNELTEST_OUTPUT_SYSTEM      253
-#define SH_CSS_BINARY_ID_SC_PRIMARY_SINGLE_STAGE_C0         254
-#define SH_CSS_BINARY_ID_SC_PRIMARY_SINGLE_STAGE_HR         255
-#define SH_CSS_BINARY_ID_IF_TO_XNR                          256
-#define SH_CSS_BINARY_ID_IF_TO_XNR_STRIPED                  257
-#define SH_CSS_BINARY_ID_IF_TO_REF_STRIPED                  258
-#define SH_CSS_BINARY_ID_VIDEO_IF_TO_OSYS                   259
-#define SH_CSS_BINARY_ID_IF_TO_TNR_NO_DVS_C0_STRIPED        260
-#define SH_CSS_BINARY_ID_IF_TO_YUVP1_C0                     261
-#define SH_CSS_BINARY_ID_IF_TO_XNR_PRIMARY                  262
 
 #define XMEM_WIDTH_BITS              HIVE_ISP_DDR_WORD_BITS
 #define XMEM_SHORTS_PER_WORD         (HIVE_ISP_DDR_WORD_BITS/16)

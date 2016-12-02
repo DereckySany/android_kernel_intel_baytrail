@@ -32,14 +32,10 @@
 #include "sh_css_firmware.h"
 #include "sh_css_defs.h"
 #include "sh_css_legacy.h"
-
 #if !defined(IS_ISP_2500_SYSTEM)
 #include "vf/vf_1.0/ia_css_vf.host.h"
 #include "sdis/sdis_1.0/ia_css_sdis.host.h"
-#else
-#include <components/stats_3a/src/host/stats_3a.host.h>
 #endif
-
 #include "camera/pipe/interface/ia_css_pipe_binarydesc.h"
 #if defined(HAS_RES_MGR)
 #include <components/resolutions_mgr/src/host/resolutions_mgr.host.h>
@@ -115,8 +111,8 @@ ia_css_binary_internal_res(const struct ia_css_frame_info *in_info,
 		info->pipeline.top_cropping,
 		binary_dvs_env.height);
 #if defined(HAS_RES_MGR)
-	internal_res->height = (bds_out_info == NULL) ? internal_res->height : bds_out_info->res.height;
-	internal_res->width = (bds_out_info == NULL) ? internal_res->width: bds_out_info->res.width;
+	internal_res->height = bds_out_info->res.height;
+	internal_res->width = bds_out_info->res.width;
 #endif
 }
 
@@ -329,15 +325,12 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
 
 void
 ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
-			    struct ia_css_grid_info *info,
-			    struct ia_css_pipe *pipe)
+				struct ia_css_grid_info *info)
 {
 	struct ia_css_dvs_grid_info *dvs_info;
 
-	(void)pipe;
 	assert(binary != NULL);
 	assert(info != NULL);
-
 	dvs_info = &info->dvs_grid;
 
 	info->isp_in_width = binary->internal_frame_info.res.width;
@@ -357,7 +350,6 @@ ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
 	dvs_info->num_ver_coefs     = binary->dis.coef.dim.height;
 
 #if defined(IS_ISP_2500_SYSTEM)
-	assert(pipe != NULL);
 	dvs_info->enable            = binary->info->sp.enable.dvs_stats;
 #endif
 
@@ -373,12 +365,10 @@ ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
 
 void
 ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
-			   struct ia_css_grid_info *info,
-			   struct ia_css_pipe *pipe)
+			       struct ia_css_grid_info *info)
 {
 	struct ia_css_3a_grid_info *s3a_info;
 
-	(void)pipe;
 	assert(binary != NULL);
 	assert(info != NULL);
 	s3a_info = &info->s3a_grid;
@@ -403,18 +393,12 @@ ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
 	s3a_info->has_histogram     = 0;
 #endif
 #else	/* IS_ISP_2500_SYSTEM defined */
-	assert(pipe != NULL);
 	s3a_info->ae_enable         = binary->info->sp.enable.ae;
 	s3a_info->af_enable         = binary->info->sp.enable.af;
 	s3a_info->awb_fr_enable     = binary->info->sp.enable.awb_fr_acc;
 	s3a_info->awb_enable        = binary->info->sp.enable.awb_acc;
 	s3a_info->elem_bit_depth    = SH_CSS_BAYER_BITS;
-
-	ia_css_3a_stat_grid_calculate(s3a_info, pipe);
-
-	s3a_info->af_grd_info       = *get_af_grid_config(pipe);
-	s3a_info->awb_fr_grd_info   = *get_awb_fr_grid_config(pipe);
-	s3a_info->awb_grd_info      = *get_awb_grid_config(pipe);
+	/* todo grid config */
 #endif
 #if defined(HAS_VAMEM_VERSION_2)
 	info->vamem_type = IA_CSS_VAMEM_TYPE_2;
@@ -465,21 +449,6 @@ binary_supports_output_format(const struct ia_css_binary_xinfo *info,
 	return false;
 }
 
-static bool
-binary_supports_vf_format(const struct ia_css_binary_xinfo *info,
-			  enum ia_css_frame_format format)
-{
-	int i;
-
-	assert(info != NULL);
-
-	for (i = 0; i < info->num_vf_formats; i++) {
-		if (info->vf_formats[i] == format)
-			return true;
-	}
-	return false;
-}
-
 /* move to host part of bds module */
 static bool
 supports_bds_factor(uint32_t supported_factors,
@@ -495,8 +464,8 @@ binary_init_info(struct ia_css_binary_xinfo *info, unsigned int i,
 	const unsigned char *blob = sh_css_blob_info[i].blob;
 	unsigned size = sh_css_blob_info[i].header.blob.size;
 
-	if ((info == NULL) || (binary_found == NULL))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+	assert(info != NULL);
+	assert(binary_found != NULL);
 
 	*info = sh_css_blob_info[i].header.info.isp;
 	*binary_found = blob != NULL;
@@ -787,7 +756,8 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 	/* viewfinder output info */
 	if ((vf_info != NULL) && (vf_info->res.width != 0)) {
 		unsigned int vf_out_vecs, vf_out_width, vf_out_height;
-		binary->vf_frame_info.format = vf_info->format;
+
+		binary->vf_frame_info.format = IA_CSS_FRAME_FORMAT_YUV_LINE;
 		if (bin_out_info == NULL)
 			return IA_CSS_ERR_INTERNAL_ERROR;
 		vf_out_vecs = __ISP_VF_OUTPUT_WIDTH_VECS(bin_out_info->padded_width,
@@ -923,7 +893,6 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 
 	struct ia_css_binary_xinfo *xcandidate;
 	bool need_ds, need_dz, need_dvs, need_xnr;
-	bool striped;
 	bool enable_yuv_ds;
 	bool enable_high_speed;
 	bool enable_dvs_6axis;
@@ -967,7 +936,6 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 	enable_dvs_6axis  = descr->enable_dvs_6axis;
 	enable_reduced_pipe = descr->enable_reduced_pipe;
 	continuous = descr->continuous;
-	striped = descr->striped;
 	isp_pipe_version = descr->isp_pipe_version;
 
 	dvs_env.width = 0;
@@ -1020,12 +988,6 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 					__LINE__, candidate->enable.continuous,
 					continuous, mode,
 					IA_CSS_BINARY_MODE_COPY);
-			continue;
-		}
-		if (striped && candidate->iterator.num_stripes == 1) {
-			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				"ia_css_binary_find() [%d] continue: binary is not striped\n",
-					__LINE__);
 			continue;
 		}
 
@@ -1130,7 +1092,7 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 			candidate->internal.max_height);
 			continue;
 		}
-		if (!candidate->enable.ds && need_ds & !(xcandidate->num_output_pins > 1)) {
+		if (!candidate->enable.ds && need_ds) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				"ia_css_binary_find() [%d] continue: !%d && %d\n",
 				__LINE__, candidate->enable.ds, (int)need_ds);
@@ -1193,18 +1155,6 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 				__LINE__, xcandidate->num_output_pins, 1,
 				req_vf_info,
 				binary_supports_output_format(xcandidate, req_vf_info->format));
-			continue;
-		}
-
-		/* Check if vf_veceven supports the requested vf format */
-		if (xcandidate->num_output_pins == 1 &&
-			req_vf_info && candidate->enable.vf_veceven &&
-			!binary_supports_vf_format(xcandidate, req_vf_info->format)) {
-			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				"ia_css_binary_find() [%d] continue: (%d == %d) && (%p != NULL) && %d && !%d\n",
-				__LINE__, xcandidate->num_output_pins, 1,
-				req_vf_info, candidate->enable.vf_veceven,
-				binary_supports_vf_format(xcandidate, req_vf_info->format));
 			continue;
 		}
 
@@ -1284,10 +1234,9 @@ ia_css_binary_max_vf_width(void)
 void
 ia_css_binary_destroy_isp_parameters(struct ia_css_binary *binary)
 {
-	if (binary) {
-		ia_css_isp_param_destroy_isp_parameters(&binary->mem_params,
-							&binary->css_params);
-	}
+	ia_css_isp_param_destroy_isp_parameters(
+		&binary->mem_params,
+		&binary->css_params);
 }
 
 void

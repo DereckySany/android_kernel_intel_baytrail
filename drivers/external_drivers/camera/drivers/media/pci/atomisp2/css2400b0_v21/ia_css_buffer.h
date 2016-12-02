@@ -53,8 +53,6 @@ enum ia_css_buffer_type {
 	IA_CSS_NUM_BUFFER_TYPE
 };
 
-/* Driver API is not SP/ISP visible, 64 bit types not supported on hivecc */
-#if !defined(__SP) && !defined(__ISP)
 /** Buffer structure. This is a container structure that enables content
  *  independent buffer queues and access functions.
  */
@@ -74,7 +72,6 @@ struct ia_css_buffer {
 	} data; /**< Buffer data pointer. */
 	uint64_t driver_cookie; /**< cookie for the driver */
 	struct ia_css_time_meas timing_data; /**< timing data (readings from the timer) */
-	struct ia_css_clock_tick isys_eof_clock_tick; /**< ISYS's end of frame timer tick*/
 };
 
 /** @brief Dequeue param buffers from sp2host_queue
@@ -86,7 +83,5 @@ struct ia_css_buffer {
  */
 void
 ia_css_dequeue_param_buffers(void);
-
-#endif /* !__SP && !__ISP */
 
 #endif /* __IA_CSS_BUFFER_H */

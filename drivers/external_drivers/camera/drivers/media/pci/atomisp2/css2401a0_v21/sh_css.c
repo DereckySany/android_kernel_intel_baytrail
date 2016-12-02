@@ -456,19 +456,18 @@ verify_copy_out_frame_format(struct ia_css_pipe *pipe)
  * TODO: see if needs to be made public
  */
 static enum ia_css_err
-sh_css_commit_isp_config(struct ia_css_pipe *pipe)
+sh_css_commit_isp_config(struct ia_css_stream *stream,
+			 struct ia_css_pipeline *pipeline)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_pipeline_stage *stage;
-	struct ia_css_pipeline *pipeline;
 
-	pipeline = &pipe->pipeline;
 	if (pipeline) {
 		/* walk through pipeline and commit settings */
 		/* TODO: check if this is needed (s3a is handled through this */
 		for (stage = pipeline->stages; stage; stage = stage->next) {
 			if (stage && stage->binary) {
-				err = sh_css_params_write_to_ddr(pipe,
+				err = sh_css_params_write_to_ddr(stream,
 								 stage);
 				if (err != IA_CSS_SUCCESS)
 					return err;
@@ -1432,7 +1431,7 @@ static enum ia_css_err start_pipe(
 
 	if (me->config.mode != IA_CSS_PIPE_MODE_COPY){
 		/* prepare update of params to ddr */
-		err = sh_css_commit_isp_config(me);
+		err = sh_css_commit_isp_config(me->stream, &me->pipeline);
 		if (err == IA_CSS_SUCCESS)
 			pipe_start(me);
 	}
@@ -2885,7 +2884,8 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 	struct ia_css_frame_info prev_in_info,
 				 prev_bds_out_info,
 				 prev_out_info,
-				 prev_vf_info;
+				 prev_vf_info,
+				 prev_original_in_info;
 	struct ia_css_binary_descr preview_descr;
 	bool online;
 	enum ia_css_err err = IA_CSS_SUCCESS;
@@ -2953,6 +2953,7 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 	err = ia_css_pipe_get_preview_binarydesc(
 			pipe,
 			&preview_descr,
+			&prev_original_in_info,
 			&prev_in_info,
 			&prev_bds_out_info,
 			&prev_out_info,
@@ -2987,6 +2988,7 @@ load_preview_binaries(struct ia_css_pipe *pipe)
 		err = ia_css_pipe_get_preview_binarydesc(
 				pipe,
 				&preview_descr,
+				&prev_original_in_info,
 				&prev_in_info,
 				&prev_bds_out_info,
 				&prev_out_info,
@@ -3171,11 +3173,11 @@ static enum ia_css_err add_vf_pp_stage(
 		if (last_fw) {
 			ia_css_pipe_util_set_output_frames(out_frames, 0, NULL);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc, vf_pp_binary,
-				out_frames, in_frame, NULL);
+				out_frames, in_frame, NULL, NULL);
 		} else{
 			ia_css_pipe_util_set_output_frames(out_frames, 0, out_frame);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc, vf_pp_binary,
-				out_frames, in_frame, NULL);
+				out_frames, in_frame, NULL, NULL);
 		}
 		err = ia_css_pipeline_create_and_add_stage(me, &stage_desc, vf_pp_stage);
 		if (err != IA_CSS_SUCCESS)
@@ -3221,12 +3223,12 @@ static enum ia_css_err add_yuv_scaler_stage(
 	if(last_fw) {
 		ia_css_pipe_util_set_output_frames(out_frames, 0, NULL);
 		ia_css_pipe_get_generic_stage_desc(&stage_desc,
-			yuv_scaler_binary, out_frames, in_frame, vf_frame);
+			yuv_scaler_binary, out_frames, in_frame, NULL, vf_frame);
 	} else {
 		ia_css_pipe_util_set_output_frames(out_frames, 0, out_frame);
 		ia_css_pipe_util_set_output_frames(out_frames, 1, internal_out_frame);
 		ia_css_pipe_get_generic_stage_desc(&stage_desc,
-			yuv_scaler_binary, out_frames, in_frame, vf_frame);
+			yuv_scaler_binary, out_frames, in_frame, NULL, vf_frame);
 	}
 	err = ia_css_pipeline_create_and_add_stage(me,
 		&stage_desc,
@@ -3284,11 +3286,11 @@ static enum ia_css_err add_capture_pp_stage(
 		if(last_fw)	{
 			ia_css_pipe_util_set_output_frames(out_frames, 0, NULL);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc,
-				capture_pp_binary, out_frames, NULL, vf_frame);
+				capture_pp_binary, out_frames, NULL, NULL, vf_frame);
 		} else {
 			ia_css_pipe_util_set_output_frames(out_frames, 0, out_frame);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc,
-				capture_pp_binary, out_frames, NULL, vf_frame);
+				capture_pp_binary, out_frames, NULL, NULL, vf_frame);
 		}
 		err = ia_css_pipeline_create_and_add_stage(me,
 			&stage_desc,
@@ -3395,7 +3397,6 @@ ia_css_get_crop_offsets (
 	enum ia_css_pipe_id pipe_id;
 	unsigned int left_cropping = 0, top_cropping = 0;
 	const struct ia_css_binary_xinfo *info;
-	unsigned int min_reqd_height, min_reqd_width;
 
 	assert(pipe != NULL);
 	assert(pipe->stream != NULL);
@@ -3403,28 +3404,20 @@ ia_css_get_crop_offsets (
 
 	input_res = &pipe->stream->config.input_config.input_res;
 	effective_res = &pipe->stream->config.input_config.effective_res;
+	dvs_env = &pipe->config.dvs_envelope;
 	pipe_id = pipe->mode;
-
-	/* The dvs envelope info may not be correctly sent down via pipe config
-	 * The check is made and the correct value is populated in the binary info
-	 * Use this value when computing crop, else excess lines may get trimmed
-	 */
 
 	switch (pipe_id) {
 	case IA_CSS_PIPE_ID_PREVIEW:
 		info = pipe->pipe_settings.preview.preview_binary.info;
-		dvs_env = &pipe->pipe_settings.preview.preview_binary.dvs_envelope;
 		break;
 	case IA_CSS_PIPE_ID_VIDEO:
 		info = pipe->pipe_settings.video.video_binary.info;
-		dvs_env = &pipe->pipe_settings.video.video_binary.dvs_envelope;
 		break;
 	case IA_CSS_PIPE_ID_CAPTURE:
 		info = pipe->pipe_settings.capture.primary_binary.info;
-		dvs_env = &pipe->pipe_settings.capture.primary_binary.dvs_envelope;
 		break;
 	default:
-		dvs_env = &pipe->config.dvs_envelope;
 		info = NULL;
 	}
 
@@ -3435,15 +3428,12 @@ ia_css_get_crop_offsets (
 
 	in_frame->raw_bayer_order = pipe->stream->config.input_config.bayer_order;
 
-	min_reqd_height = effective_res->height + top_cropping + dvs_env->height;
-	min_reqd_width = effective_res->width + left_cropping + dvs_env->width;
-
-	if (input_res->height > min_reqd_height) {
-		row = (input_res->height - min_reqd_height) / 2;
+	if (effective_res->height < input_res->height) {
+		row = (input_res->height - effective_res->height - top_cropping - dvs_env->height) / 2;
 		row &= ~0x1;
 	}
-	if (input_res->width > min_reqd_width) {
-		column = (input_res->width - min_reqd_width) / 2;
+	if (effective_res->width < input_res->width) {
+		column = (input_res->width - effective_res->width - left_cropping - dvs_env->width) / 2;
 		column &= ~0x1;
 	}
 
@@ -3655,7 +3645,7 @@ static enum ia_css_err create_host_video_pipeline(struct ia_css_pipe *pipe)
 	if (need_copy) {
 		ia_css_pipe_util_set_output_frames(out_frames, 0, NULL);
 		ia_css_pipe_get_generic_stage_desc(&stage_desc, copy_binary,
-			out_frames, NULL, NULL);
+			out_frames, NULL, NULL, NULL);
 		err = ia_css_pipeline_create_and_add_stage(me,
 			&stage_desc,
 			&copy_stage);
@@ -3680,10 +3670,10 @@ static enum ia_css_err create_host_video_pipeline(struct ia_css_pipe *pipe)
 	   it can directly produce the vf_frame.  */
 	if(need_vf_pp) {
 		ia_css_pipe_get_generic_stage_desc(&stage_desc, video_binary,
-			out_frames, in_frame, NULL);
+			out_frames, in_frame, NULL, NULL);
 	} else {
 		ia_css_pipe_get_generic_stage_desc(&stage_desc, video_binary,
-			out_frames, in_frame, vf_frame);
+			out_frames, in_frame, NULL, vf_frame);
 	}
 	err = ia_css_pipeline_create_and_add_stage(me,
 			&stage_desc,
@@ -3818,7 +3808,7 @@ create_host_preview_pipeline(struct ia_css_pipe *pipe)
 	struct ia_css_pipeline_stage *out_stage = NULL;
 	struct ia_css_pipeline *me = NULL;
 	struct ia_css_binary *copy_binary, *preview_binary, *vf_pp_binary = NULL;
-	struct ia_css_frame *in_frame = NULL;
+	struct ia_css_frame *in_frame = NULL, *cc_frame = NULL;
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_frame *out_frame;
 	struct ia_css_frame *out_frames[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
@@ -3882,7 +3872,7 @@ create_host_preview_pipeline(struct ia_css_pipe *pipe)
 	if (pipe->pipe_settings.preview.copy_binary.info) {
 		ia_css_pipe_util_set_output_frames(out_frames, 0, NULL);
 		ia_css_pipe_get_generic_stage_desc(&stage_desc, copy_binary,
-			out_frames, NULL, NULL);
+			out_frames, NULL, NULL, NULL);
 		err = ia_css_pipeline_create_and_add_stage(me,
 				&stage_desc,
 				&post_stage);
@@ -3905,11 +3895,11 @@ create_host_preview_pipeline(struct ia_css_pipe *pipe)
 	if (vf_pp_binary) {
 		ia_css_pipe_util_set_output_frames(out_frames, 0, NULL);
 		ia_css_pipe_get_generic_stage_desc(&stage_desc, preview_binary,
-			out_frames, in_frame, NULL);
+			out_frames, in_frame, cc_frame, NULL);
 	} else {
 		ia_css_pipe_util_set_output_frames(out_frames, 0, out_frame);
 		ia_css_pipe_get_generic_stage_desc(&stage_desc, preview_binary,
-			out_frames, in_frame, NULL);
+			out_frames, in_frame, cc_frame, NULL);
 	}
 	err = ia_css_pipeline_create_and_add_stage(me,
 		&stage_desc,
@@ -4202,7 +4192,7 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 			return IA_CSS_ERR_INVALID_ARGUMENTS;
 		}
 		ddr_buffer.kernel_ptr = HOST_ADDRESS(buffer->data.stats_skc_dvs);
-		ddr_buffer.payload.skc_dvs_statistics = (hrt_vaddress)buffer->data.stats_skc_dvs;
+		ddr_buffer.payload.skc_dvs_statistics = buffer->data.stats_skc_dvs;
 #else
 		if (buffer->data.stats_dvs == NULL) {
 			IA_CSS_LEAVE_ERR(IA_CSS_ERR_INVALID_ARGUMENTS);
@@ -4218,7 +4208,7 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 			return IA_CSS_ERR_INVALID_ARGUMENTS;
 		}
 		ddr_buffer.kernel_ptr = HOST_ADDRESS(buffer->data.stats_lace);
-		ddr_buffer.payload.lace_stat = (hrt_vaddress)buffer->data.stats_lace;
+		ddr_buffer.payload.lace_stat = buffer->data.stats_lace;
 #endif
 	} else if (buf_type == IA_CSS_BUFFER_TYPE_METADATA) {
 		ddr_buffer.kernel_ptr = HOST_ADDRESS(buffer->data.metadata);
@@ -5243,12 +5233,9 @@ static enum ia_css_err load_video_binaries(struct ia_css_pipe *pipe)
 			num_output_pins = mycs->video_binary.info->num_output_pins;
 			vf_ds_log2 = mycs->video_binary.vf_downscale_log2;
 
-			/* no need on 2500 to have vf_pp binary since we have downscale in HW */
-#if !defined(IS_ISP_2500_SYSTEM)
 			/* If the binary has dual output pins, we need vf_pp if the resolution
 			* is different. */
 			need_vf_pp |= ((num_output_pins == 2) && vf_res_different_than_output);
-#endif
 
 			/* If the binary has single output pin, we need vf_pp if additional
 			* scaling is needed for vf */
@@ -5275,6 +5262,7 @@ static enum ia_css_err load_video_binaries(struct ia_css_pipe *pipe)
 			if (err != IA_CSS_SUCCESS)
 				return err;
 		}
+
 	}
 
 	/* If a video binary does not use a ref_frame, we set the frame delay
@@ -6532,7 +6520,6 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 	struct ia_css_binary *next_binary;
 	struct ia_css_cas_binary_descr cas_scaler_descr = IA_CSS_DEFAULT_CAS_BINARY_DESCR;
 	unsigned int i, j;
-	bool need_isp_copy_binary = false;
 
 	IA_CSS_ENTER_PRIVATE("");
 	assert(pipe != NULL);
@@ -6613,58 +6600,14 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 		next_binary = NULL;
 	}
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2401)
-	/*
-	 * NOTES
-	 * - Why does the "yuvpp" pipe needs "isp_copy_binary" (i.e. ISP Copy) when
-	 *   its input is "IA_CSS_STREAM_FORMAT_YUV422_8"?
-	 *
-	 *   In most use cases, the first stage in the "yuvpp" pipe is the "yuv_scale_
-	 *   binary". However, the "yuv_scale_binary" does NOT support the input-frame
-	 *   format as "IA_CSS_STREAM _FORMAT_YUV422_8".
-	 *
-	 *   Hence, the "isp_copy_binary" is required to be present in front of the "yuv
-	 *   _scale_binary". It would translate the input-frame to the frame formats that
-	 *   are supported by the "yuv_scale_binary".
-	 *
-	 *   Please refer to "FrameWork/css/isp/pipes/capture_pp/capture_pp_1.0/capture_
-	 *   pp_defs.h" for the list of input-frame formats that are supported by the
-	 *   "yuv_scale_binary".
-	 */
-	need_isp_copy_binary =
-		(pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV422_8);
-#else  /* !USE_INPUT_SYSTEM_VERSION_2401 */
-	need_isp_copy_binary = true;
-#endif /*  USE_INPUT_SYSTEM_VERSION_2401 */
-
-	if (need_isp_copy_binary) {
-		err = load_copy_binary(pipe,
-				       &mycs->copy_binary,
-				       next_binary);
-
-		if (err != IA_CSS_SUCCESS)
-			goto ERR;
-
-		/*
-		 * NOTES
-		 * - Why is "pipe->pipe_settings.capture.copy_binary.online" specified?
-		 *
-		 *   In some use cases, the first stage in the "yuvpp" pipe is the
-		 *   "isp_copy_binary". The "isp_copy_binary" is designed to process
-		 *   the input from either the system DDR or from the IPU internal VMEM.
-		 *   So it provides the flag "online" to specify where its input is from,
-		 *   i.e.:
-		 *
-		 *      (1) "online <= true", the input is from the IPU internal VMEM.
-		 *      (2) "online <= false", the input is from the system DDR.
-		 *
-		 *   In other use cases, the first stage in the "yuvpp" pipe is the
-		 *   "yuv_scale_binary". "The "yuv_scale_binary" is designed to process the
-		 *   input ONLY from the system DDR. So it does not provide the flag "online"
-		 *   to specify where its input is from.
-		 */
-		pipe->pipe_settings.capture.copy_binary.online = pipe->stream->config.online;
-	}
+#if !defined(USE_INPUT_SYSTEM_VERSION_2401)
+	/* ISP Copy */
+	err = load_copy_binary(pipe,
+			       &mycs->copy_binary,
+			       next_binary);
+	if (err != IA_CSS_SUCCESS)
+		goto ERR;
+#endif
 
 	/* Viewfinder post-processing */
 	if (need_scaler) {
@@ -6911,43 +6854,15 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe)
 	 *  b) sensor, via copy binary: connect yuvscaler to copy binary later on */
 	if (need_in_frameinfo_memory) {
 		/* TODO: improve for different input formats. */
-
-		/*
-		 * "pipe->stream->config.input_config.format" represents the sensor output
-		 * frame format, e.g. YUV422 8-bit.
-		 *
-		 * "in_frame_format" represents the imaging pipe's input frame format, e.g.
-		 * Bayer-Quad RAW.
-		 */
-		int in_frame_format;
 		if (pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV420_8_LEGACY) {
-			in_frame_format = IA_CSS_FRAME_FORMAT_CSI_MIPI_LEGACY_YUV420_8;
-		} else if (pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV422_8) {
-			/*
-			 * When the sensor output frame format is "IA_CSS_STREAM_FORMAT_YUV422_8",
-			 * the "isp_copy_var" binary is selected as the first stage in the yuvpp
-			 * pipe.
-			 *
-			 * For the "isp_copy_var" binary, it reads the YUV422-8 pixels from
-			 * the frame buffer (at DDR) to the frame-line buffer (at VMEM).
-			 *
-			 * By now, the "isp_copy_var" binary does NOT provide a separated
-			 * frame-line buffer to store the YUV422-8 pixels. Instead, it stores
-			 * the YUV422-8 pixels in the frame-line buffer which is designed to
-			 * store the Bayer-Quad RAW pixels.
-			 *
-			 * To direct the "isp_copy_var" binary reading from the RAW frame-line
-			 * buffer, its input frame format must be specified as "IA_CSS_FRAME_
-			 * FORMAT_RAW".
-			 */
-			in_frame_format = IA_CSS_FRAME_FORMAT_RAW;
+			err = init_in_frameinfo_memory_defaults(pipe,
+				&me->in_frame,
+				IA_CSS_FRAME_FORMAT_CSI_MIPI_LEGACY_YUV420_8);
 		} else {
-			in_frame_format = IA_CSS_FRAME_FORMAT_NV12;
+			err = init_in_frameinfo_memory_defaults(pipe,
+				&me->in_frame,
+				IA_CSS_FRAME_FORMAT_NV12);
 		}
-
-		err = init_in_frameinfo_memory_defaults(pipe,
-			&me->in_frame,
-			in_frame_format);
 		if (err != IA_CSS_SUCCESS)
 			return err;
 
@@ -6980,23 +6895,14 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe)
 	need_scaler = need_yuv_scaler_stage(pipe);
 
 	if (pipe->pipe_settings.yuvpp.copy_binary.info) {
-
-		struct ia_css_frame *in_frame_local = NULL;
-
-#ifdef USE_INPUT_SYSTEM_VERSION_2401
-		/* After isp copy is enabled in_frame needs to be passed. */
-		if (!online)
-			in_frame_local = in_frame;
-#endif
-
-		if (need_scaler) {
+		if(need_scaler) {
 			ia_css_pipe_util_set_output_frames(bin_out_frame, 0, NULL);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc, copy_binary,
-				bin_out_frame, in_frame_local, NULL);
+				bin_out_frame, NULL, NULL, NULL);
 		} else {
 			ia_css_pipe_util_set_output_frames(bin_out_frame, 0, out_frame[0]);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc, copy_binary,
-				bin_out_frame, in_frame_local, NULL);
+				bin_out_frame, NULL, NULL, NULL);
 		}
 
 		err = ia_css_pipeline_create_and_add_stage(me,
@@ -7172,6 +7078,7 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 				     *in_stage = NULL,
 				     *post_stage = NULL,
 				     *yuv_scaler_stage = NULL;
+	struct ia_css_frame *cc_frame = NULL;
 	struct ia_css_binary *copy_binary,
 			     *primary_binary,
 			     *vf_pp_binary,
@@ -7283,20 +7190,20 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 #if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2401)
 			if (!continuous) {
 				ia_css_pipe_get_generic_stage_desc(&stage_desc, copy_binary,
-					out_frames, in_frame, NULL);
+					out_frames, in_frame, NULL, NULL);
 			} else {
 				in_frame = pipe->stream->last_pipe->continuous_frames[0];
 				ia_css_pipe_get_generic_stage_desc(&stage_desc, copy_binary,
-					out_frames, in_frame, NULL);
+					out_frames, in_frame, NULL, NULL);
 			}
 #else
 			ia_css_pipe_get_generic_stage_desc(&stage_desc, copy_binary,
-				out_frames, NULL, NULL);
+				out_frames, NULL, NULL, NULL);
 #endif
 		} else {
 			ia_css_pipe_util_set_output_frames(out_frames, 0, in_frame);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc, copy_binary,
-				out_frames, NULL, NULL);
+				out_frames, NULL, NULL, NULL);
 		}
 
 		err = ia_css_pipeline_create_and_add_stage(me,
@@ -7314,11 +7221,11 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 		if(need_pp) {
 			ia_css_pipe_util_set_output_frames(out_frames, 0, NULL);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc, primary_binary,
-				out_frames, in_frame, NULL);
+				out_frames, in_frame, cc_frame, NULL);
 		} else {
 			ia_css_pipe_util_set_output_frames(out_frames, 0, out_frame);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc, primary_binary,
-				out_frames, in_frame, NULL);
+				out_frames, in_frame, cc_frame, NULL);
 		}
 
 		err = ia_css_pipeline_create_and_add_stage(me,
@@ -7336,14 +7243,14 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 	           mode == IA_CSS_CAPTURE_MODE_LOW_LIGHT) {
 		ia_css_pipe_util_set_output_frames(out_frames, 0, NULL);
 		ia_css_pipe_get_generic_stage_desc(&stage_desc, pre_isp_binary,
-			out_frames, in_frame, NULL);
+			out_frames, in_frame, cc_frame, NULL);
 		err = ia_css_pipeline_create_and_add_stage(me,
 				&stage_desc, NULL);
 		if (err != IA_CSS_SUCCESS)
 			return err;
 		ia_css_pipe_util_set_output_frames(out_frames, 0, NULL);
 		ia_css_pipe_get_generic_stage_desc(&stage_desc, anr_gdc_binary,
-			out_frames, NULL, NULL);
+			out_frames, NULL, NULL, NULL);
 		err = ia_css_pipeline_create_and_add_stage(me,
 				&stage_desc, NULL);
 		if (err != IA_CSS_SUCCESS)
@@ -7352,11 +7259,11 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 		if(need_pp) {
 			ia_css_pipe_util_set_output_frames(out_frames, 0, NULL);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc, post_isp_binary,
-				out_frames, NULL, NULL);
+				out_frames, NULL, NULL, NULL);
 		} else {
 			ia_css_pipe_util_set_output_frames(out_frames, 0, out_frame);
 			ia_css_pipe_get_generic_stage_desc(&stage_desc, post_isp_binary,
-				out_frames, NULL, NULL);
+				out_frames, NULL, NULL, NULL);
 		}
 
 		err = ia_css_pipeline_create_and_add_stage(me,
@@ -7366,7 +7273,7 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 	} else if (mode == IA_CSS_CAPTURE_MODE_BAYER) {
 		ia_css_pipe_util_set_output_frames(out_frames, 0, out_frame);
 		ia_css_pipe_get_generic_stage_desc(&stage_desc, pre_isp_binary,
-			out_frames, in_frame, NULL);
+			out_frames, in_frame, cc_frame, NULL);
 		err = ia_css_pipeline_create_and_add_stage(me,
 			&stage_desc,
 			NULL);

@@ -25,9 +25,6 @@
 
 #ifdef __SP
 #include <hive_isp_css_sp_api_modified.h>
-#include <ia_css_sp_file_id.sp.h>
-#define SP_FILE_ID SP_FILE_ID_CIRCBUF /* overrule default in ia_css_sp_assert_level.sp.h */
-#include <ia_css_sp_assert_level.sp.h>
 #endif
 
 /**********************************************************************
@@ -122,12 +119,12 @@ uint32_t ia_css_circbuf_pop(ia_css_circbuf_t *cb)
 	uint32_t ret;
 	ia_css_circbuf_elem_t elem;
 
+	if (ia_css_circbuf_is_empty(cb))
 #ifdef __SP
-	SP_ASSERT_FATAL(!ia_css_circbuf_is_empty(cb));
+		sp_error(IA_CSS_FW_ERR_CIRCBUF_EMPTY);
 #else
-	assert(!ia_css_circbuf_is_empty(cb));
+		assert(0);
 #endif
-
 	/* read an element from the buffer */
 	elem = ia_css_circbuf_read(cb);
 	ret = ia_css_circbuf_elem_get_val(&elem);

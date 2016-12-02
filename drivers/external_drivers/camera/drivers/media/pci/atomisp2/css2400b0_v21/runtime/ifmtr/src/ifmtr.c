@@ -110,24 +110,19 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 	/* Index is equal to the CSI-2 port used. */
 	enum ia_css_csi2_port port;
 
-	if (binary) {
-		cropped_height = binary->in_frame_info.res.height;
-		cropped_width = binary->in_frame_info.res.width;
-		/* This should correspond to the input buffer definition for
-		ISP binaries in input_buf.isp.h */
-		if (binary->info->sp.enable.continuous && binary->info->sp.pipeline.mode != IA_CSS_BINARY_MODE_COPY)
-			buffer_width = MAX_VECTORS_PER_INPUT_LINE_CONT * ISP_VEC_NELEMS;
-		else
-			buffer_width = binary->info->sp.input.max_width;
-		input_format = binary->input_format;
-	} else {
-		/* sp raw copy pipe (IA_CSS_PIPE_MODE_COPY): binary is NULL */
-		cropped_height = config->input_config.input_res.height;
-		cropped_width = config->input_config.input_res.width;
+	assert(binary != NULL);
+	cropped_height = binary->in_frame_info.res.height;
+	cropped_width = binary->in_frame_info.res.width;
+	/* This should correspond to the input buffer definition for ISP
+	 * binaries in input_buf.isp.h */
+	if (binary->info->sp.enable.continuous && binary->info->sp.pipeline.mode != IA_CSS_BINARY_MODE_COPY)
 		buffer_width = MAX_VECTORS_PER_INPUT_LINE_CONT * ISP_VEC_NELEMS;
-		input_format = config->input_config.format;
-	}
+	else
+		buffer_width = binary->info->sp.input.max_width;
+	input_format = binary->input_format;
 	two_ppc = config->pixels_per_clock == 2;
+
+
 	if (config->mode == IA_CSS_INPUT_MODE_SENSOR
 	    || config->mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
 		port = config->source.port.port;
@@ -154,11 +149,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		return err;
 
 	if (config->left_padding == -1)
-		if (!binary)
-			/* sp raw copy pipe: set left_padding value */
-			left_padding = 0;
-		else
-			left_padding = binary->left_padding;
+		left_padding = binary->left_padding;
 	else
 		left_padding = 2*ISP_VEC_NELEMS - config->left_padding;
 
@@ -306,9 +297,9 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		} else {
 			vmem_increment = 1;
 			deinterleaving = 2;
-			if ((!binary) || (config->continuous && binary
-				&& binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_COPY)) {
-				/* !binary -> sp raw copy pipe, no deinterleaving */
+			if (config->continuous &&
+			    binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_COPY) {
+				/* No deinterleaving for sp copy */
 				deinterleaving = 1;
 			}
 			width_a = cropped_width;
@@ -316,8 +307,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 			num_vectors = CEIL_MUL(num_vectors, deinterleaving);
 		}
 		buffer_height *= 2;
-		if ((!binary) || config->continuous)
-			/* !binary -> sp raw copy pipe */
+		if (config->continuous)
 			buffer_height *= 2;
 		vectors_per_line = CEIL_DIV(cropped_width, ISP_VEC_NELEMS);
 		vectors_per_line = CEIL_MUL(vectors_per_line, deinterleaving);
@@ -388,9 +378,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 	vectors_per_buffer = buffer_height * buffer_width / ISP_VEC_NELEMS;
 
 	if (config->mode == IA_CSS_INPUT_MODE_TPG &&
-	    ((binary && binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_VIDEO) ||
-	    (!binary))) {
-		/* !binary -> sp raw copy pipe */
+	    binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_VIDEO) {
 		/* workaround for TPG in video mode */
 		start_line = 0;
 		start_column = 0;

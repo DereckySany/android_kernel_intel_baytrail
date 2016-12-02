@@ -29,8 +29,7 @@
 void
 ia_css_eed1_8_encode(
 	struct ia_css_isp_eed1_8_params *to,
-	const struct ia_css_eed1_8_config *from,
-	size_t size);
+	const struct ia_css_eed1_8_config *from);
 
 #ifndef IA_CSS_NO_DEBUG
 void

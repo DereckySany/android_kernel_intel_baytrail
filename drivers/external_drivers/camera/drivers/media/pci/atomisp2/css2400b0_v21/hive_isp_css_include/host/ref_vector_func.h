@@ -101,8 +101,6 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_mul_realigning(
  * As part of input processing for piecewise linear estimation config unit,
  * this function will perform scaling followed by adding offset and
  * then clamping to the MAX InputValue
- * It asserts -MAX_SHIFT_1W <= input_scale <= MAX_SHIFT_1W, and
- * -MAX_SHIFT_1W <= input_offset <= MAX_SHIFT_1W
  */
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_input_scaling_offset_clamping(
 	tvector1w a,
@@ -119,16 +117,17 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_input_scaling_offset_clamping(
  * As part of output processing for piecewise linear estimation config unit,
  * This function will perform scaling and then clamping to output
  * MAX value.
- * It asserts -MAX_SHIFT_1W <= output_scale <= MAX_SHIFT_1W
  */
+
+
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_output_scaling_clamping(
 	tvector1w a,
 	tscalar1w_5bit_signed output_scale);
 
 /** @brief Config Unit Piecewiselinear estimation
  *
- * @param[in] a 	          input
- * @param[in] config_points   config parameter structure
+ * @param[in] a 	           input
+ * @param[in] test_config_points   config parameter structure
  *
  * @return		     	   piecewise linear estimated output
  *
@@ -139,13 +138,14 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_output_scaling_clamping(
  */
 STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_piecewise_estimation(
 	tvector1w a,
-	ref_config_points config_points);
+	ref_config_points test_config_points);
 
-/** @brief XCU LUT initialization
+/** @brief XCU (Fast Config Unit Piecewise linear estimation
  *
- * @param[in] config_points   config parameter structure
+ * @param[in] a input
+ * @param[in] test_config_points   config parameter structure
  *
- * @return				   LUT with three vectors for slope, x_prev, offset
+ * @return		     	   piecewise linear estimated output
  *
  * Given a set of N points, not necessariliy equidistant,
  * {(x1,y1), (x2,y2), ...., (xn,yn)}, to find
@@ -157,64 +157,36 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_piecewise_estimation(
  * divided into 32 equal intervals and LUT is created for each of these 32
  * intervals for slope, y_offset and x_prev. Interval of current point x
  * is calculated by dividing it with the range approximated to nearest
- * power of 2 (upper bound). The range has to be a multiple of 32.
+ * power of 2 (upper bound)
  *
  * * @details
  * Given a set of N configuration points, not necessarily equidistant,
- * {(x1,y1), (x2,y2),....(xn,yn)}, this function gives the piecewise linear
- * estimation for any arbitrary point around the config points. The distance
- * between the minimum config point and maximum config point (range) is
- * divided into ISP_NWAY equal intervals i.e. the LUT size is equal to
- * ISP_NWAY. It is assumed that is always a power of 2.
+ * {(x1,y1), (x2,y2),....(xn,yn)}, not necessarily euqidistant, this function
+ * gives the piecewise linear estimation for any arbitrary point around the
+ * config points. The distance between the minimum config point and maximum
+ * config point (range) is divided into ISP_NWAY equal intervals i.e. the
+ * LUT size is equal to ISP_NWAY. It is assumed that is always a power of 2.
  * In the current case, 32 intervals are used as the ISP is 32 way. It should
  * be noted that some approximation is introduced here as the range may not be
  * an integer multiple of ISP_NWAY.
- * The LUT is created from the configuration input for slope, y_offset and
+ * A LUT is created from the configuration input for slope, y_offset and
  * x_prev_value. Input values of a particular conifg point are replicated in
  * the LUT till the interval reaches the next config point. LUT is then filled
  * with the data of the next config point. For example:
  * LUT for Slope can look like S = [s1 s2 s2 s2 s2 s3 s3 s4 s5 s5 s6 s6 s6..],
  * depending on the distance between the config points. Similarly the data
- * is filled for y_offset and X-prev_values. */
-
-STORAGE_CLASS_REF_VECTOR_FUNC_H ref_config_point_vectors XCU_LUT_create(
-	ref_config_points config_points);
-
-/** @brief XCU Fast Config Unit Piecewise linear estimation
- *
- * @param[in] x input
- * @param[in] config_points   config parameters structure
- * @param[in] init_vectors		   LUT data structure
- *
- * @return		     	   piecewise linear estimated output
- *
- * Once the LUT is created in XCU_LUT_create function,
+ * is filled for y_offset and X-prev_values. Once this LUT is created,
  * the interval of the any input x is identified by dividing it by the range
- * (approximated to the nearest power of 2 (upper bound)). This is done to have a
+ * (approximated to the nearest power of 2 (upper bound)). This is done for
  * fast division operation to identify the interval of input x. Once the
- * interval of the input is idenitfied, its config data is retrieved from the
+ * interavl of the input is idenitfied, its config data is retrieved from the
  * LUT and output y is calculated. Input points less than x1 are treated as
- * simple case of using first y_offset as the output.
+ * simple case of using first y_pffset as the output.
  */
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_X_piecewise_estimation(
-	tvector1w x,
-	ref_config_points config_points,
-	ref_config_point_vectors init_vectors);
 
-/** @brief OP_1w_XCU Wrapper function for XCU LUT create, piecewise estimation and output clamping
- *
- * @param[in] x input
- * @param[in] config_points Config parameters structure
- *
- * @return	piecewise linear estimated clamped output
- * This block gets a set of input configuration points and input x, creates a LUT for
- * config points and gives a clamped piece-wise interpolated output. This block assumes
- * that the difference between the first config point and the last config point is a multiple
- * of 32. The config points are monotonically increasing.
- **/
 STORAGE_CLASS_REF_VECTOR_FUNC_H  tvector1w OP_1w_XCU(
 	tvector1w x,
-	ref_config_points config_points);
+	ref_config_points test_config_points);
 
 
 /** @brief Coring
@@ -827,7 +799,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bma_output_14_2 OP_1w_asp_bma_14_2_32way(
 	tscalar1w_4bit_bma_shift shift);
 
 #ifdef HAS_bfa_unit
-/** @brief OP_1w_single_bfa_7x7
+/** @brief OP_1w_single_bfa_9x9_reduced
  *
  * @param[in] weights - spatial and range weight lut
  * @param[in] threshold - threshold plane, for range weight scaling
@@ -836,12 +808,13 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bma_output_14_2 OP_1w_asp_bma_14_2_32way(
  *
  * @return   Bilateral filter output pixel
  *
- * This function implements, 7x7 single bilateral filter.
+ * This function implements, reduced 9x9 single bilateral filter.
  * Output = sum(pixel * weight) / sum(weight)
- * Where sum is summation over 7x7 block set.
+ * Where sum is summation over reduced 9x9 block set. Reduced because few
+ * corner pixels are not taken.
  * weight = spatial weight * range weight
  * spatial weights are loaded from spatial_weight_lut depending on src pixel
- * position in the 7x7 block
+ * position in the 9x9 block
  * range weights are computed by table look up from range_weight_lut depending
  * on scaled absolute difference between src and central pixels.
  * threshold is used as scaling factor. range_weight_lut consists of
@@ -849,13 +822,13 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H bma_output_14_2 OP_1w_asp_bma_14_2_32way(
  * Piecewise linear approximation technique is used to compute range weight
  * It computes absolute difference between central pixel and 61 src pixels.
  */
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_single_bfa_7x7(
+STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_single_bfa_9x9_reduced(
 	bfa_weights weights,
 	tvector1w threshold,
 	tvector1w central_pix,
-	s_1w_7x7_matrix src_plane);
+	s_1w_9x9_matrix src_plane);
 
-/** @brief OP_1w_joint_bfa_7x7
+/** @brief OP_1w_joint_bfa_9x9_reduced
  *
  * @param[in] weights - spatial and range weight lut
  * @param[in] threshold0 - 1st threshold plane, for range weight scaling
@@ -867,12 +840,13 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_single_bfa_7x7(
  *
  * @return   Joint bilateral filter output pixel
  *
- * This function implements, 7x7 joint bilateral filter.
+ * This function implements, reduced 9x9 joint bilateral filter.
  * Output = sum(pixel * weight) / sum(weight)
- * Where sum is summation over 7x7 block set.
+ * Where sum is summation over reduced 9x9 block set. Reduced because few
+ * corner pixels are not taken.
  * weight = spatial weight * range weight
  * spatial weights are loaded from spatial_weight_lut depending on src pixel
- * position in the 7x7 block
+ * position in the 9x9 block
  * range weights are computed by table look up from range_weight_lut depending
  * on sum of scaled absolute difference between central pixel and two src pixel
  * planes. threshold is used as scaling factor. range_weight_lut consists of
@@ -880,18 +854,18 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_single_bfa_7x7(
  * Piecewise linear approximation technique is used to compute range weight
  * It computes absolute difference between central pixel and 61 src pixels.
  */
-STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_joint_bfa_7x7(
+STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_joint_bfa_9x9_reduced(
 	bfa_weights weights,
 	tvector1w threshold0,
 	tvector1w central_pix0,
-	s_1w_7x7_matrix src0_plane,
+	s_1w_9x9_matrix src0_plane,
 	tvector1w threshold1,
 	tvector1w central_pix1,
-	s_1w_7x7_matrix src1_plane);
+	s_1w_9x9_matrix src1_plane);
 
 /** @brief bbb_bfa_gen_spatial_weight_lut
  *
- * @param[in] in - 7x7 matrix of spatial weights
+ * @param[in] in - 9x9 matrix of spatial weights
  * @param[in] out - generated LUT
  *
  * @return   None
@@ -900,7 +874,7 @@ STORAGE_CLASS_REF_VECTOR_FUNC_H tvector1w OP_1w_joint_bfa_7x7(
  * for bilaterl filter instruction.
  */
 STORAGE_CLASS_REF_VECTOR_FUNC_H void bbb_bfa_gen_spatial_weight_lut(
-	s_1w_7x7_matrix in,
+	s_1w_9x9_matrix in,
 	tvector1w out[BFA_MAX_KWAY]);
 
 /** @brief bbb_bfa_gen_range_weight_lut

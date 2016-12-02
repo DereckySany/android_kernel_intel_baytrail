@@ -42,7 +42,7 @@ The version string has four dot-separated numbers, read left to right:
 
 */
 
-#define CSS_API_VERSION_STRING	"2.1.9.1"
+#define CSS_API_VERSION_STRING	"2.1.8.3"
 
 /*
 Change log
@@ -204,31 +204,14 @@ v2.1.8.2 (2 changes parallel), Added member num_invalid_frames to ia_css_pipe_in
 - This helps the driver make sure that the first valid output
 - frame goes into the first user-supplied output buffer.
 
-v2.1.8.4 (2 changes parallel), ISYS EOF timestamp for output buffers
-- driver gets EOF timer to every out frame . ia_css_buffer modified to accomodate same.
-
-v2.1.8.4 (4 changes parallel), display_config
+v2.1.8.3 (3 changes parallel), display_config
 - Added formats- and output config parameters for configuration of the (optional) display output.
 
-v2.1.8.4 (2 changes parallel), Adding zoom region parameters to CSS API
+v2.1.8.3 (1 changes parallel), Adding zoom region parameters to CSS API
 - Adding ia_css_point and ia_css_region structures to css-api.
 - Adding zoom_region(type ia_css_region) parameter to ia_css_dz_config structure.
 - By using this user can do the zoom based on zoom region and
 - the center of the zoom region is not restricted at the center of the input frame.
-
-v2.1.8.6 (1 changes parallel), Add new ia_css_fw_warning type
-- Add IA_CSS_FW_WARNING_TAG_EXP_ID_FAILED enum to ia_css_fw_warning type
-- Extend sp_warning() with exp_id parameter
-
-v2.1.8.6 (1 changes parallel), Add includes in GC, GC2 kernel interface files
-- add ia_css_ctc_types.h includes in ia_css_gc_types.h and ia_css_gc2_types.h. Needed to get ia_css_vamem_type.
-
-v2.1.9.0 (1 changes parallel), Introduce sp assert event.
-- Add IA_CSS_EVENT_TYPE_FW_ASSERT. The FW sends the event in case an assert goes off.
-
-v2.1.9.1 (1 changes parallel), Exclude driver part from ia_css_buffer.h as it is also used by SP
-- Excluded driver part of the interface from SP/ISP code
-- Driver I/F is not affected
 
 */
 

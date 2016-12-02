@@ -151,7 +151,7 @@ struct ia_css_isp_parameters {
 };
 
 enum ia_css_err
-sh_css_params_write_to_ddr(struct ia_css_pipe *pipe,
+sh_css_params_write_to_ddr(struct ia_css_stream *stream,
 			   struct ia_css_pipeline_stage *stage);
 
 void

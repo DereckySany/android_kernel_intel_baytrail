@@ -20,8 +20,9 @@
  */
 
 #include "ia_css_dpc2.host.h"
-#include "assert_support.h"
 
+/* TODO: See if some functionality can be embedded in encode
+ * See also for range and precision of parameters etc.. */
 void
 ia_css_dpc2_encode(
 	struct ia_css_isp_dpc2_params *to,
@@ -29,23 +30,18 @@ ia_css_dpc2_encode(
 	size_t size)
 {
 	(void)size;
-
-	assert ((from->metric1 >= 0) && (from->metric1 <= METRIC1_ONE_FP));
-	assert ((from->metric3 >= 0) && (from->metric3 <= METRIC3_ONE_FP));
-	assert ((from->metric2 >= METRIC2_ONE_FP) &&
-			(from->metric2 < 256*METRIC2_ONE_FP));
-	assert ((from->wb_gain_gr > 0) && (from->wb_gain_gr < 16*WBGAIN_ONE_FP));
-	assert ((from->wb_gain_r  > 0) && (from->wb_gain_r  < 16*WBGAIN_ONE_FP));
-	assert ((from->wb_gain_b  > 0) && (from->wb_gain_b  < 16*WBGAIN_ONE_FP));
-	assert ((from->wb_gain_gb > 0) && (from->wb_gain_gb < 16*WBGAIN_ONE_FP));
-
-	to->metric1 = from->metric1;
-	to->metric2 = from->metric2;
-	to->metric3 = from->metric3;
-
-	to->wb_gain_gr = from->wb_gain_gr;
-	to->wb_gain_r  = from->wb_gain_r;
-	to->wb_gain_b  = from->wb_gain_b;
-	to->wb_gain_gb = from->wb_gain_gb;
+	/* TODO: Implement following encode functions
+	* one_plus_metric1;
+	* one_minus_metric1;
+	* one_plus_metric3;
+	* wb_gain_gr;
+	* wb_gain_r;
+	* wb_gain_b;
+	* wb_gain_gb;
+	* wb_gain_gr_scaled_by_metric2;
+	* wb_gain_r_scaled_by_metric2;
+	* wb_gain_b_scaled_by_metric2;
+	* wb_gain_gb_scaled_by_metric2;
+	*/
 }
 

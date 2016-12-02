@@ -21,10 +21,7 @@
 
 #include "ia_css_types.h"
 #include "sh_css_defs.h"
-#ifndef IA_CSS_NO_DEBUG
-/* FIXME: See BZ 4427 */
 #include "ia_css_debug.h"
-#endif
 #include "sh_css_frac.h"
 #include "vamem.h"
 
@@ -76,7 +73,6 @@ ia_css_gc_vamem_encode(
 	memcpy (&to->gc,  &from->data, sizeof(to->gc));
 }
 
-#ifndef IA_CSS_NO_DEBUG
 void
 ia_css_gc_dump(
 	const struct sh_css_isp_gc_params *gc,
@@ -121,5 +117,4 @@ ia_css_ce_debug_dtrace(
 		"config.uv_level_min=%d, config.uv_level_max=%d\n",
 		config->uv_level_min, config->uv_level_max);
 }
-#endif
 

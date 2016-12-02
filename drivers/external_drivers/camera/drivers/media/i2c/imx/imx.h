@@ -209,7 +209,6 @@ struct imx_vcm {
 	int (*init)(struct v4l2_subdev *sd);
 	int (*t_focus_vcm)(struct v4l2_subdev *sd, u16 val);
 	int (*t_focus_abs)(struct v4l2_subdev *sd, s32 value);
-	int (*t_focus_abs_init)(struct v4l2_subdev *sd);
 	int (*t_focus_rel)(struct v4l2_subdev *sd, s32 value);
 	int (*q_focus_status)(struct v4l2_subdev *sd, s32 *value);
 	int (*q_focus_abs)(struct v4l2_subdev *sd, s32 *value);
@@ -545,7 +544,6 @@ extern int dw9714_vcm_init(struct v4l2_subdev *sd);
 
 extern int dw9714_t_focus_vcm(struct v4l2_subdev *sd, u16 val);
 extern int dw9714_t_focus_abs(struct v4l2_subdev *sd, s32 value);
-extern int dw9714_t_focus_abs_init(struct v4l2_subdev *sd);
 extern int dw9714_t_focus_rel(struct v4l2_subdev *sd, s32 value);
 extern int dw9714_q_focus_status(struct v4l2_subdev *sd, s32 *value);
 extern int dw9714_q_focus_abs(struct v4l2_subdev *sd, s32 *value);
@@ -586,7 +584,6 @@ struct imx_vcm imx_vcms[] = {
 		.init = drv201_vcm_init,
 		.t_focus_vcm = drv201_t_focus_vcm,
 		.t_focus_abs = drv201_t_focus_abs,
-		.t_focus_abs_init = NULL,
 		.t_focus_rel = drv201_t_focus_rel,
 		.q_focus_status = drv201_q_focus_status,
 		.q_focus_abs = drv201_q_focus_abs,
@@ -599,7 +596,6 @@ struct imx_vcm imx_vcms[] = {
 		.init = dw9714_vcm_init,
 		.t_focus_vcm = dw9714_t_focus_vcm,
 		.t_focus_abs = dw9714_t_focus_abs,
-		.t_focus_abs_init = NULL,
 		.t_focus_rel = dw9714_t_focus_rel,
 		.q_focus_status = dw9714_q_focus_status,
 		.q_focus_abs = dw9714_q_focus_abs,
@@ -612,7 +608,6 @@ struct imx_vcm imx_vcms[] = {
 		.init = ad5816g_vcm_init,
 		.t_focus_vcm = ad5816g_t_focus_vcm,
 		.t_focus_abs = ad5816g_t_focus_abs,
-		.t_focus_abs_init = NULL,
 		.t_focus_rel = ad5816g_t_focus_rel,
 		.q_focus_status = ad5816g_q_focus_status,
 		.q_focus_abs = ad5816g_q_focus_abs,
@@ -625,7 +620,6 @@ struct imx_vcm imx_vcms[] = {
 		.init = dw9719_vcm_init,
 		.t_focus_vcm = dw9719_t_focus_vcm,
 		.t_focus_abs = dw9719_t_focus_abs,
-		.t_focus_abs_init = NULL,
 		.t_focus_rel = dw9719_t_focus_rel,
 		.q_focus_status = dw9719_q_focus_status,
 		.q_focus_abs = dw9719_q_focus_abs,
@@ -638,7 +632,6 @@ struct imx_vcm imx_vcms[] = {
 		.init = dw9714_vcm_init,
 		.t_focus_vcm = dw9714_t_focus_vcm,
 		.t_focus_abs = dw9714_t_focus_abs,
-		.t_focus_abs_init = dw9714_t_focus_abs_init,
 		.t_focus_rel = dw9714_t_focus_rel,
 		.q_focus_status = dw9714_q_focus_status,
 		.q_focus_abs = dw9714_q_focus_abs,
@@ -651,7 +644,6 @@ struct imx_vcm imx_vcms[] = {
 		.init = dw9718_vcm_init,
 		.t_focus_vcm = dw9718_t_focus_vcm,
 		.t_focus_abs = dw9718_t_focus_abs,
-		.t_focus_abs_init = NULL,
 		.t_focus_rel = dw9718_t_focus_rel,
 		.q_focus_status = dw9718_q_focus_status,
 		.q_focus_abs = dw9718_q_focus_abs,
@@ -661,7 +653,6 @@ struct imx_vcm imx_vcms[] = {
 	[IMX_ID_DEFAULT] = {
 		.power_up = vcm_power_up,
 		.power_down = vcm_power_down,
-		.t_focus_abs_init = NULL,
 	},
 };
 

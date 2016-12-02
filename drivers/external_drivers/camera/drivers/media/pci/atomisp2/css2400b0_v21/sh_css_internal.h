@@ -147,6 +147,7 @@
 
 #define SH_CSS_MAX_SP_INTERNAL_THREADS	(\
 	 SH_CSS_SP_INTERNAL_SERVICE_THREAD +\
+	 SH_CSS_SP_INTERNAL_SWITCH_GACS_TO_SP1_THREAD +\
 	 SH_CSS_SP_INTERNAL_METADATA_THREAD)
 
 #define SH_CSS_MAX_PIPELINES	SH_CSS_MAX_SP_THREADS
@@ -238,7 +239,6 @@ enum sh_css_sp_event_type {
 	SH_CSS_SP_EVENT_PORT_EOF,
 	SH_CSS_SP_EVENT_FW_ERROR,
 	SH_CSS_SP_EVENT_FW_WARNING,
-	SH_CSS_SP_EVENT_FW_ASSERT,
 	SH_CSS_SP_EVENT_NR_OF_TYPES		/* must be last */
 };
 
@@ -316,6 +316,7 @@ struct ia_css_isp_parameter_set_info {
 /* this struct contains all arguments that can be passed to
    a binary. It depends on the binary which ones are used. */
 struct sh_css_binary_args {
+	struct ia_css_frame *cc_frame;       /* continuous capture frame */
 	struct ia_css_frame *in_frame;	     /* input frame */
 	struct ia_css_frame *delay_frames[MAX_NUM_VIDEO_DELAY_FRAMES];   /* reference input frame */
 	struct ia_css_frame *tnr_frames[NUM_VIDEO_TNR_FRAMES];   /* tnr frames */
@@ -791,8 +792,8 @@ struct sh_css_hmm_buffer {
 	union {
 		struct ia_css_isp_3a_statistics  s3a;
 		struct ia_css_isp_dvs_statistics dis;
-		hrt_vaddress skc_dvs_statistics;
-		hrt_vaddress lace_stat;
+		struct ia_css_isp_skc_dvs_statistics *skc_dvs_statistics;
+		struct ia_css_isp_lace_statistics *lace_stat;
 		struct ia_css_metadata	metadata;
 		struct frame_data_wrapper {
 			hrt_vaddress	frame_data;
@@ -809,29 +810,14 @@ struct sh_css_hmm_buffer {
 	/*
 	 * kernel_ptr is present for host administration purposes only.
 	 * type is uint64_t in order to be 64-bit host compatible.
-	 * uint64_t does not exist on SP/ISP.
-	 * Size of the struct is checked by sp.hive.c.
 	 */
-#if !defined(__SP) && !defined(__ISP)
 	CSS_ALIGN(uint64_t cookie_ptr, 8); /* TODO: check if this alignment is needed */
 	uint64_t kernel_ptr;
-#else
-	CSS_ALIGN(struct { uint32_t a[2]; } cookie_ptr, 8); /* TODO: check if this alignment is needed */
-	struct { uint32_t a[2]; } kernel_ptr;
-#endif
 	struct ia_css_time_meas timing_data;
-	clock_value_t isys_eof_clock_tick;
 };
-#if CONFIG_ON_FRAME_ENQUEUE()
 #define SIZE_OF_FRAME_STRUCT						\
 	(SIZE_OF_HRT_VADDRESS +						\
-	(3 * sizeof(uint32_t)) +					\
-	sizeof(uint32_t))
-#else
-#define SIZE_OF_FRAME_STRUCT						\
-	(SIZE_OF_HRT_VADDRESS +						\
-	(3 * sizeof(uint32_t)))
-#endif
+	(2 * sizeof(uint32_t)))
 
 #define SIZE_OF_PAYLOAD_UNION						\
 	(MAX(MAX(MAX(MAX(						\
@@ -841,15 +827,12 @@ struct sh_css_hmm_buffer {
 	SIZE_OF_FRAME_STRUCT),						\
 	SIZE_OF_HRT_VADDRESS))
 
-/* Do not use sizeof(uint64_t) since that does not exist of SP */
 #define SIZE_OF_SH_CSS_HMM_BUFFER_STRUCT				\
 	(SIZE_OF_PAYLOAD_UNION +					\
 	CALC_ALIGNMENT_MEMBER(SIZE_OF_PAYLOAD_UNION, 8) +		\
-	8 +						\
-	8 +						\
-	SIZE_OF_IA_CSS_TIME_MEAS_STRUCT +				\
-	SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT +			\
-	CALC_ALIGNMENT_MEMBER(SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT, 8))
+	sizeof(uint64_t) +						\
+	sizeof(uint64_t) +						\
+	SIZE_OF_IA_CSS_TIME_MEAS_STRUCT)
 
 enum sh_css_queue_type {
 	sh_css_invalid_queue_type = -1,

@@ -80,14 +80,14 @@ struct ia_css_iefd2_6_config {
 						u9.0, [0,511], default 128, ineffective 0 */
 	int32_t rad_dir_far_sharp_weight;  /**< Weight of wide direct sharpening.
 						u1.12, [0,4096], default 8, ineffective 0 */
-	int32_t shrpn_nega_lmt_txt;	   /**< Sharpening limit for negative overshoots for texture.
+	int32_t sharp_nega_lmt_txt;	   /**< Sharpening limit for negative overshoots for texture.
 						u13.0, [0,8191], default 1024, ineffective 0 */
-	int32_t shrpn_posi_lmt_txt;	   /**< Sharpening limit for positive overshoots for texture.
+	int32_t sharp_posi_lmt_txt;	   /**< Sharpening limit for positive overshoots for texture.
 						u13.0, [0,8191], default 1024, ineffective 0 */
-	int32_t shrpn_nega_lmt_dir;	   /**< Sharpening limit for negative overshoots for direction
+	int32_t sharp_nega_lmt_dir;	   /**< Sharpening limit for negative overshoots for direction
 						(edge).
 						u13.0, [0,8191], default 128, ineffective 0 */
-	int32_t shrpn_posi_lmt_dir;	   /**< Sharpening limit for positive overshoots for direction
+	int32_t sharp_posi_lmt_dir;	   /**< Sharpening limit for positive overshoots for direction
 						(edge).
 						u13.0, [0,8191], default 128, ineffective 0 */
 	int32_t clamp_stitch;		   /**< Slope to stitch between clamped and unclamped edge values.
@@ -152,10 +152,10 @@ struct ia_css_iefd2_6_config {
 	int32_t cu_radial_points_x[6];	   /**< PointsX of Config Unit Radial.
 						u0.8, [0,255], default 50,86,142,189,224,255,
 						ineffective 0,0,0,0,0,0 */
-	int32_t cu_radial_slopes_a[5];	   /**< SlopesA of Config Unit Radial.
+	int32_t cu_radial_slope_a[5];	   /**< SlopesA of Config Unit Radial.
 						s5.8, [-8192, 8191], default 713,278,295,286,-1,
 						ineffective 0,0,0,0,0 */
-	int32_t cu_radial_slopes_b[5];	   /**< SlopesB of Config Unit Radial.
+	int32_t cu_radial_slope_b[5];	   /**< SlopesB of Config Unit Radial.
 						u0.8, [0,255], default 1,101,162,216,255,
 						ineffective 0,0,0,0,0 */
 	int32_t cu_vssnlm_points_x[2];	   /**< PointsX of config unit VSSNLM.

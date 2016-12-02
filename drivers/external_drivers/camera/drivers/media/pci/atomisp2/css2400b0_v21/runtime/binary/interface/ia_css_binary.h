@@ -60,8 +60,8 @@
 /* now these ports only include output ports but not vf output ports */
 enum {
 	IA_CSS_BINARY_OUTPUT_PORT_0 = 0,
-	IA_CSS_BINARY_OUTPUT_PORT_1 = 1,
-	IA_CSS_BINARY_MAX_OUTPUT_PORTS = 2
+	IA_CSS_BINARY_OUTPUT_PORT_1,
+	IA_CSS_BINARY_MAX_OUTPUT_PORTS,
 };
 
 struct ia_css_cas_binary_descr {
@@ -89,7 +89,6 @@ struct ia_css_binary_descr {
 	int mode;
 	bool online;
 	bool continuous;
-	bool striped;
 	bool two_ppc;
 	bool enable_yuv_ds;
 	bool enable_high_speed;
@@ -100,6 +99,8 @@ struct ia_css_binary_descr {
 	bool enable_fractional_ds;
 	struct ia_css_resolution dvs_env;
 	enum ia_css_stream_format stream_format;
+	struct ia_css_frame_info *original_in_info;	/* the info of the input-frame with the
+							   original resolution. */
 	struct ia_css_frame_info *in_info;		/* the info of the input-frame with the
 							   ISP required resolution. */
 	struct ia_css_frame_info *bds_out_info;
@@ -220,13 +221,11 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,
 
 void
 ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
-			   struct ia_css_grid_info *info,
-			   struct ia_css_pipe *pipe);
+			   struct ia_css_grid_info *info);
 
 void
 ia_css_binary_dvs_grid_info(const struct ia_css_binary *binary,
-			    struct ia_css_grid_info *info,
-			    struct ia_css_pipe *pipe);
+			   struct ia_css_grid_info *info);
 
 unsigned
 ia_css_binary_max_vf_width(void);

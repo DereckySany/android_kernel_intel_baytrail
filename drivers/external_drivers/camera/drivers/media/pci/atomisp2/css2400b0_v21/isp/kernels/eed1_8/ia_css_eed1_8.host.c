@@ -31,25 +31,22 @@
 void
 ia_css_eed1_8_encode(
 	struct ia_css_isp_eed1_8_params *to,
-	const struct ia_css_eed1_8_config *from,
-	size_t size)
+	const struct ia_css_eed1_8_config *from)
 {
 	int i;
-
-	(void)size;
 
 	to->rbzp_strength = from->rbzp_strength;
 
 	to->fcstrength = from->fcstrength;
 	to->fcthres_0 = from->fcthres_0;
+	to->fcthres_1 = from->fcthres_1;
 	to->fc_sat_coef = from->fc_sat_coef;
 	to->fc_coring_prm = from->fc_coring_prm;
-	to->fc_slope = from->fcthres_1 - from->fcthres_0;
 
 	to->aerel_thres0 = from->aerel_thres0;
 	to->aerel_gain0 = from->aerel_gain0;
-	to->aerel_thres_diff = from->aerel_thres1 - from->aerel_thres0;
-	to->aerel_gain_diff = from->aerel_gain1 - from->aerel_gain0;
+	to->aerel_thres1 = from->aerel_thres1;
+	to->aerel_gain1 = from->aerel_gain1;
 
 	to->derel_thres0 = from->derel_thres0;
 	to->derel_gain0 = from->derel_gain0;
@@ -57,20 +54,20 @@ ia_css_eed1_8_encode(
 	to->derel_gain1 = from->derel_gain1;
 
 	to->coring_pos0 = from->coring_pos0;
-	to->coring_pos_diff = (from->coring_pos1 - from->coring_pos0);
+	to->coring_pos1 = from->coring_pos1;
 	to->coring_neg0 = from->coring_neg0;
-	to->coring_neg_diff = (from->coring_neg1 - from->coring_neg0);
+	to->coring_neg1 = from->coring_neg1;
 
-	to->gain = (1 << from->gain_exp);
+	to->gain_exp = from->gain_exp;
 	to->gain_pos0 = from->gain_pos0;
-	to->gain_pos_diff = (from->gain_pos1 - from->gain_pos0);
+	to->gain_pos1 = from->gain_pos1;
 	to->gain_neg0 = from->gain_neg0;
-	to->gain_neg_diff = (from->gain_neg1 - from->gain_neg0);
+	to->gain_neg1 = from->gain_neg1;
 
 	to->pos_margin0 = from->pos_margin0;
-	to->margin_pos_diff = (from->pos_margin1 - from->pos_margin0);
+	to->pos_margin1 = from->pos_margin1;
 	to->neg_margin0 = from->neg_margin0;
-	to->margin_neg_diff = (from->neg_margin1 - from->neg_margin0);
+	to->neg_margin1 = from->neg_margin1;
 
 	for (i = 0; i < IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS; i++) {
 		to->dew_enhance_seg_x[i] = from->dew_enhance_seg_x[i];

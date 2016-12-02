@@ -984,8 +984,7 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 	unsigned int i;
 
 	if (list_empty(&asd->s3a_stats)) {
-		count = ATOMISP_CSS_Q_DEPTH +
-		        ATOMISP_S3A_BUF_QUEUE_DEPTH_FOR_HAL;
+		count = ATOMISP_CSS_Q_DEPTH + 1;
 		dev_dbg(isp->dev, "allocating %d 3a buffers\n", count);
 		while (count--) {
 			s3a_buf = kzalloc(sizeof(struct atomisp_s3a_buf), GFP_KERNEL);
@@ -1025,9 +1024,7 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 	}
 
 	for (i = 0; i < ATOMISP_METADATA_TYPE_NUM; i++) {
-		if (list_empty(&asd->metadata[i]) &&
-		    list_empty(&asd->metadata_ready[i]) &&
-		    list_empty(&asd->metadata_in_css[i])) {
+		if (list_empty(&asd->metadata[i])) {
 			count = ATOMISP_CSS_Q_DEPTH +
 				ATOMISP_METADATA_QUEUE_DEPTH_FOR_HAL;
 			dev_dbg(isp->dev, "allocating %d metadata buffers for type %d\n",
@@ -1331,24 +1328,6 @@ done:
 				atomisp_wdt_start(isp);
 		}
 	}
-
-	/* Workaround: Due to the design of HALv3,
-	 * sometimes in ZSL mode HAL needs to
-	 * capture multiple images within one streaming cycle.
-	 * But the capture number cannot be determined by HAL.
-	 * So HAL only sets the capture number to be 1 and queue multiple
-	 * buffers. Atomisp driver needs to check this case and re-trigger
-	 * CSS to do capture when new buffer is queued. */
-	if (asd->continuous_mode->val &&
-	    asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW &&
-	    atomisp_subdev_source_pad(vdev)
-	    == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE &&
-	    pipe->capq.streaming &&
-	    !asd->enable_raw_buffer_lock->val &&
-	    asd->params.offline_parm.num_captures == 1) {
-		asd->pending_capture_request++;
-		dev_dbg(isp->dev, "Add one pending capture request.\n");
-	}
 	rt_mutex_unlock(&isp->mutex);
 
 	dev_dbg(isp->dev, "qbuf buffer %d (%s)\n", buf->index, vdev->name);
@@ -1591,6 +1570,7 @@ static int atomisp_streamon(struct file *file, void *fh,
 	unsigned int wdt_duration = ATOMISP_ISP_TIMEOUT_DURATION;
 	int ret = 0;
 	unsigned long irqflags;
+        int counter = 25;
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		dev_dbg(isp->dev, "unsupported v4l2 buf type\n");
@@ -1630,9 +1610,6 @@ static int atomisp_streamon(struct file *file, void *fh,
 	if (ret)
 		goto out;
 
-	/* Reset pending capture request count. */
-	asd->pending_capture_request = 0;
-
 	if ((atomisp_subdev_streaming_count(asd) > sensor_start_stream) &&
 	    (!isp->inputs[asd->input_curr].camera_caps->multi_stream_ctrl)) {
 		/* trigger still capture */
@@ -1648,7 +1625,7 @@ static int atomisp_streamon(struct file *file, void *fh,
 				"ZSL last preview raw buffer id: %u\n",
 				asd->latest_preview_exp_id);
 
-			if (asd->delayed_init == ATOMISP_DELAYED_INIT_QUEUED) {
+			if (asd->delayed_init != ATOMISP_DELAYED_INIT_DONE) {
 				flush_work(&asd->delayed_init_work);
 				rt_mutex_unlock(&isp->mutex);
 				if (wait_for_completion_interruptible(
@@ -1765,6 +1742,8 @@ start_sensor:
 				      MRFLD_PCI_CSI_CONTROL_CSI_READY);
 	}
 
+        g_isp_addr_chk_flag = false;
+
 	/* stream on the sensor */
 	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 			       video, s_stream, 1);
@@ -1773,6 +1752,21 @@ start_sensor:
 		ret = -EINVAL;
 		goto out;
 	}
+
+	if ((0 == strncmp(isp->inputs[asd->input_curr].camera->name, "gc0339", strlen("gc0339"))) || (0 == strncmp(isp->inputs[asd->input_curr].camera->name, "gc0310", strlen("gc0310"))) || (0 == strncmp(isp->inputs[asd->input_curr].camera->name, "gc2155", strlen("gc2155"))) || (0 == strncmp(isp->inputs[asd->input_curr].camera->name, "hm2056b", 7))) {
+                pr_info("[DEBUG] sof: %d, counter: %d atomic_read(&asd->sof_count): %d \n", atomic_read(&asd->sof_count), counter ,atomic_read(&asd->sof_count));
+		while(counter-- > 0 && atomic_read(&asd->sof_count) < 0) {
+
+			msleep(20);
+
+			if (counter == 0) {
+				pr_err("[DEBUG] set check flag for kernel panic WA.\n");
+				g_isp_addr_chk_flag = true;
+			} else
+				g_isp_addr_chk_flag = false;
+		}
+	}
+
 wdt_start:
 	if (asd->continuous_mode->val) {
 		struct v4l2_mbus_framefmt *sink;
@@ -1790,8 +1784,6 @@ wdt_start:
 		queue_work(asd->delayed_init_workq, &asd->delayed_init_work);
 		atomisp_css_set_cont_prev_start_time(isp,
 				ATOMISP_CALC_CSS_PREV_OVERLAP(sink->height));
-	} else {
-		asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
 	}
 
 	if (atomisp_buffers_queued(asd))
@@ -2835,12 +2827,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		break;
 	case ATOMISP_IOC_INJECT_A_FAKE_EVENT:
 		err = atomisp_inject_a_fake_event(asd, arg);
-		break;
-	case ATOMISP_IOC_G_INVALID_FRAME_NUM:
-		err = atomisp_get_invalid_frame_num(vdev, arg);
-		break;
-	case ATOMISP_IOC_G_EFFECTIVE_RESOLUTION:
-		err = atomisp_get_effective_res(asd, arg);
 		break;
 	default:
 		rt_mutex_unlock(&isp->mutex);

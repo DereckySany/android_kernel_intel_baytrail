@@ -1,5 +1,5 @@
-/* Release Version: irci_master_20141125_0453 */
-/* Release Version: irci_master_20141125_0453 */
+/* Release Version: irci_master_20141007_1709 */
+/* Release Version: irci_master_20141007_1709 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  *
@@ -62,5 +62,7 @@
    exposed in a function/data type specific header file.
    Please add to the appropriate header file or create a new one.
  */
+
+extern bool g_isp_addr_chk_flag;
 
 #endif /* _IA_CSS_H_ */

@@ -49,13 +49,8 @@ static struct ia_css_refcount_entry *refcount_find_entry(hrt_vaddress ptr,
 {
 	uint32_t i;
 
-	if (ptr == 0)
-		return NULL;
-	if (myrefcount.items == NULL) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				    "refcount_find_entry(): Ref count not initiliazed!\n");
-		return NULL;
-	}
+	assert(ptr != 0);
+	assert(myrefcount.items != NULL);
 
 	for (i = 0; i < myrefcount.size; i++) {
 
@@ -77,16 +72,9 @@ enum ia_css_err ia_css_refcount_init(uint32_t size)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 
-	if (size == 0) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_refcount_init(): Size of 0 for Ref count init!\n");
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
-	}
-	if (myrefcount.items != NULL) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_refcount_init(): Ref count is already initialized\n");
-		return IA_CSS_ERR_INTERNAL_ERROR;
-	}
+	assert(size != 0);
+	assert(myrefcount.items == NULL);
+
 	myrefcount.items =
 	    sh_css_malloc(sizeof(struct ia_css_refcount_entry) * size);
 	if (!myrefcount.items)
@@ -148,11 +136,7 @@ hrt_vaddress ia_css_refcount_increment(int32_t id, hrt_vaddress ptr)
 		entry->id = id;
 	}
 
-	if (entry->id != id) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-			    "ia_css_refcount_increment(): Ref count IDS do not match!\n");
-		return mmgr_NULL;
-	}
+	assert(entry->id == id);
 
 	if (entry->data == ptr)
 		entry->count += 1;
@@ -178,11 +162,7 @@ bool ia_css_refcount_decrement(int32_t id, hrt_vaddress ptr)
 	entry = refcount_find_entry(ptr, false);
 
 	if (entry) {
-		if (entry->id != id) {
-			ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-					    "ia_css_refcount_decrement(): Ref count IDS do not match!\n");
-			return false;
-		}
+		assert(entry->id == id);
 		if (entry->count > 0) {
 			entry->count -= 1;
 			if (entry->count == 0) {
@@ -202,8 +182,39 @@ bool ia_css_refcount_decrement(int32_t id, hrt_vaddress ptr)
 		IA_CSS_ERROR("id %x, ptr 0x%x entry %p entry->id %x entry->count %d\n",
 			id, ptr, entry, entry->id, entry->count);
 	else
-		IA_CSS_ERROR("entry NULL\n");
-	assert(false);
+		IA_CSS_ERROR("entry NULL for ptr 0x%x\n", ptr);
+	/* assert(false); */
+
+	return false;
+}
+
+bool ia_css_refcount_decrement_check(int32_t id, hrt_vaddress ptr)
+{
+	struct ia_css_refcount_entry *entry;
+
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
+			    "ia_css_refcount_decrement(%x) 0x%x\n", id, ptr);
+
+	if (ptr == mmgr_NULL)
+		return false;
+
+	entry = refcount_find_entry(ptr, false);
+
+	if (entry) {
+		assert(entry->id == id);
+		if (entry->count > 0) {
+			return true;
+		}
+	}
+
+	/* SHOULD NOT HAPPEN: ptr not managed by refcount, or not
+	   valid anymore */
+	if (entry)
+		IA_CSS_ERROR("id %x, ptr 0x%x entry %p entry->id %x entry->count %d\n",
+			id, ptr, entry, entry->id, entry->count);
+	else
+		IA_CSS_ERROR("entry NULL for ptr 0x%x\n", ptr);
+	/* assert(false); */
 
 	return false;
 }
@@ -254,9 +265,6 @@ void ia_css_refcount_clear(int32_t id, clear_func clear_func_ptr)
 				mmgr_free(entry->data);
 			}
 			assert(entry->count == 0);
-			if (entry->count != 0) {
-				IA_CSS_WARNING("Ref count for entry %x is not zero!", entry->id);
-			}
 			entry->data = mmgr_NULL;
 			entry->count = 0;
 			entry->id = 0;

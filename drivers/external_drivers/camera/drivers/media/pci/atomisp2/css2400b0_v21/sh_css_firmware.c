@@ -54,10 +54,10 @@ struct fw_param {
 /* Warning: same order as SH_CSS_BINARY_ID_* */
 static struct firmware_header *firmware_header;
 
-/* The string STR(irci_master_20141125_0453) is a place holder
+/* The string STR(irci_master_20141007_1709) is a place holder
  * which will be replaced with the actual RELEASE_VERSION
  * during package generation. Please do not modify  */
-static const char *release_version = STR(irci_master_20141125_0453);
+static const char *release_version = STR(irci_master_20141007_1709);
 
 #define MAX_FW_REL_VER_NAME	300
 static char FW_rel_ver_name[MAX_FW_REL_VER_NAME] = "---";
@@ -88,8 +88,8 @@ setup_sp(struct ia_css_fw_info *fw, const char *fw_data, struct ia_css_fw_info *
 {
 	const char *blob_data;
 
-	if ((fw == NULL) || (fw_data == NULL))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+	assert(fw != NULL);
+	assert(fw_data != NULL);
 
 	blob_data = fw_data + fw->blob.offset;
 
@@ -116,8 +116,8 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi, struct ia
 	const char *name;
 	const unsigned char *blob;
 
-	if ((fw == NULL) || (bd == NULL))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+	assert(fw != NULL);
+	assert(bd != NULL);
 
 	/* Special case: only one binary in fw */
 	if (bi == NULL) bi = (const struct ia_css_fw_info *)fw;

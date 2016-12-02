@@ -59,6 +59,16 @@ extern hrt_vaddress ia_css_refcount_increment(int32_t id, hrt_vaddress ptr);
  */
 extern bool ia_css_refcount_decrement(int32_t id, hrt_vaddress ptr);
 
+/*! \brief Function for decrease reference by 1(check).
+ *
+ * \param[in]	id		ID of the object.
+ * \param[in]	ptr		Data of the object (ptr).
+ *
+ *	- true, if it is successful.
+ *	- false, otherwise.
+ */
+extern bool ia_css_refcount_decrement_check(int32_t id, hrt_vaddress ptr);
+
 /*! \brief Function to check if reference count is 1.
  *
  * \param[in]	ptr		Data of the object (ptr).

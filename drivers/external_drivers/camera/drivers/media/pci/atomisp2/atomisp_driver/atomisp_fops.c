@@ -194,36 +194,34 @@ int atomisp_q_s3a_buffers_to_css(struct atomisp_sub_device *asd,
 				enum atomisp_css_pipe_id css_pipe_id)
 {
 	struct atomisp_s3a_buf *s3a_buf;
-	struct list_head *s3a_list;
-	unsigned int exp_id;
+	unsigned long irqflags;
 
 	while (asd->s3a_bufs_in_css[css_pipe_id] < ATOMISP_CSS_Q_DEPTH) {
-		if (!list_empty(&asd->s3a_stats)) {
-			s3a_list = &asd->s3a_stats;
-		} else if (!list_empty(&asd->s3a_stats_ready)) {
-			s3a_list = &asd->s3a_stats_ready;
-		} else {
+		spin_lock_irqsave(&asd->s3a_stats_lock, irqflags);
+		if (list_empty(&asd->s3a_stats)) {
+			spin_unlock_irqrestore(&asd->s3a_stats_lock, irqflags);
 			dev_warn(asd->isp->dev, "%s: No s3a buffers available!\n",
 			         __func__);
 			return -EINVAL;
 		}
 
-		s3a_buf = list_entry(s3a_list->next, struct atomisp_s3a_buf,
-		                     list);
+		s3a_buf = list_entry(asd->s3a_stats.prev,
+				struct atomisp_s3a_buf, list);
 		list_del_init(&s3a_buf->list);
-		exp_id = s3a_buf->s3a_data->exp_id;
+		spin_unlock_irqrestore(&asd->s3a_stats_lock, irqflags);
 
 		hmm_flush_vmap(s3a_buf->s3a_data->data_ptr);
 		if (atomisp_q_s3a_buffer_to_css(asd, s3a_buf,
 						stream_id, css_pipe_id)) {
-			/* got from head, so return back to the head */
-			list_add(&s3a_buf->list, s3a_list);
+			spin_lock_irqsave(&asd->s3a_stats_lock, irqflags);
+			/* got from tail, so return back to the tail */
+			list_add_tail(&s3a_buf->list, &asd->s3a_stats);
+			spin_unlock_irqrestore(&asd->s3a_stats_lock, irqflags);
 			return -EINVAL;
 		} else {
+			spin_lock_irqsave(&asd->s3a_stats_lock, irqflags);
 			list_add_tail(&s3a_buf->list, &asd->s3a_stats_in_css);
-			if (s3a_list == &asd->s3a_stats_ready)
-				dev_warn(asd->isp->dev, "%s: drop one s3a stat which has exp_id %d!\n",
-				         __func__, exp_id);
+			spin_unlock_irqrestore(&asd->s3a_stats_lock, irqflags);
 		}
 
 		asd->s3a_bufs_in_css[css_pipe_id]++;

@@ -39,14 +39,7 @@
 
 #if defined(_MSC_VER)
 #include <stdint.h>
-/* For ATE compilation define the bool */
-#if defined(_ATE_)
-#define bool int
-#define true 1
-#define false 0
-#else
 #include <stdbool.h>
-#endif
 #include <stddef.h>
 #include <limits.h>
 #include <errno.h>
@@ -57,8 +50,7 @@
 #endif
 
 #elif defined(__HIVECC)
-#define __INDIRECT_STDINT_INCLUDE
-#include <stdint/stdint.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <limits.h>
@@ -74,7 +66,6 @@
 #define HOST_ADDRESS(x) (unsigned long)(x)
 
 #elif defined(__GNUC__)
-#define __STDC_LIMIT_MACROS 1
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>

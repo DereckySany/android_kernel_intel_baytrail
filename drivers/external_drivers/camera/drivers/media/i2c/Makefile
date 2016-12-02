@@ -1,6 +1,13 @@
 #
 # Makefile for sensor drivers
 #
+# ASUS_BSP+++, camera driver
+obj-$(CONFIG_I2C_SEQOPS)	+= i2c_seqops/
+
+obj-$(CONFIG_VIDEO_GC0339)     += gc0339/
+obj-$(CONFIG_VIDEO_HM2056)     += hm2056/
+obj-$(CONFIG_VIDEO_GC2155_RAW) += gc2155_raw/
+# ASUS_BSP---, camera driver
 
 obj-$(CONFIG_VIDEO_IMX)        += imx/
 obj-$(CONFIG_VIDEO_IMXVB)      += imx135VB/
@@ -43,6 +50,9 @@ obj-$(CONFIG_VIDEO_OV680)     += ov680.o
 obj-$(CONFIG_VIDEO_CSI_XACTOR) += xactor_x.o
 obj-$(CONFIG_VIDEO_PIXTER) += pixter.o
 
+obj-$(CONFIG_VIDEO_AR0543)     += ar0543.o
+obj-$(CONFIG_VIDEO_GC2155)     += gc2155.o
+obj-$(CONFIG_VIDEO_GC0310)     += gc0310.o
 #
 # Makefile for flash drivers
 #
