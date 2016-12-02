@@ -20,7 +20,7 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
-
+#define DEBUG 1
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
@@ -41,6 +41,7 @@
 #include <sound/jack.h>
 #include <linux/input.h>
 #include "../../codecs/rt5640.h"
+#include "audio_map.h"
 
 #ifdef CONFIG_SND_SOC_COMMS_SSP
 #include "byt_bl_rt5642.h"
@@ -55,11 +56,12 @@
 #define BYT_CODEC_INTR_DEBOUNCE         0
 #define BYT_HS_INSERT_DET_DELAY         500
 #define BYT_HS_REMOVE_DET_DELAY         500
-#define BYT_BUTTON_DET_DELAY            100
 #define BYT_HS_DET_POLL_INTRVL          100
 #define BYT_BUTTON_EN_DELAY             1500
 
 #define BYT_HS_DET_RETRY_COUNT          6
+
+extern void update_headset_status(int status);
 
 struct byt_mc_private {
 #ifdef CONFIG_SND_SOC_COMMS_SSP
@@ -175,6 +177,25 @@ static inline void byt_set_mic_bias_ldo(struct snd_soc_codec *codec, bool enable
 	snd_soc_dapm_sync(&codec->dapm);
 }
 
+static inline void byt_jack_report(int status)
+{
+	switch (status) {
+		case SND_JACK_HEADPHONE:
+			//mid_extcon_headset_report(HEADSET_NO_MIC);
+			update_headset_status(HEADSET_NO_MIC);
+			break;
+		case SND_JACK_HEADSET:
+			//mid_extcon_headset_report(HEADSET_WITH_MIC);
+			update_headset_status(HEADSET_WITH_MIC);
+			break;
+		default:
+			//mid_extcon_headset_report(HEADSET_PULL_OUT);
+			update_headset_status(HEADSET_PULL_OUT);
+			break;
+	}
+	pr_debug("%s: headset reported: 0x%x\n", __func__, status);
+}
+
 /*if Soc Jack det is enabled, use it, otherwise use JD via codec */
 static inline int byt_check_jd_status(struct byt_mc_private *ctx)
 {
@@ -219,6 +240,7 @@ static int byt_check_jack_type(void)
 		jack_type = 0;
 
 	pr_debug("Jack type detected:%d", jack_type);
+	byt_jack_report(jack_type);
 
 	return jack_type;
 }
@@ -366,6 +388,7 @@ static void byt_check_hs_remove_status(struct work_struct *work)
 			status = rt5640_detect_hs_type(codec, false);
 			jack_type = 0;
 			byt_set_mic_bias_ldo(codec, false);
+			byt_jack_report(jack_type);
 
 		} else if (((jack->status & SND_JACK_HEADSET) == SND_JACK_HEADSET) && !ctx->process_button_events) {
 			/* Jack is still connected. We may come here if there was a spurious
@@ -562,23 +585,6 @@ static const struct snd_soc_dapm_widget byt_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			platform_clock_control, SND_SOC_DAPM_PRE_PMU|
 			SND_SOC_DAPM_POST_PMD),
-};
-
-static const struct snd_soc_dapm_route byt_audio_map[] = {
-	{"IN2P", NULL, "Headset Mic"},
-	{"IN2N", NULL, "Headset Mic"},
-	{"DMIC1", NULL, "Int Mic"},
-	{"Headphone", NULL, "HPOL"},
-	{"Headphone", NULL, "HPOR"},
-	{"Ext Spk", NULL, "SPOLP"},
-	{"Ext Spk", NULL, "SPOLN"},
-	{"Ext Spk", NULL, "SPORP"},
-	{"Ext Spk", NULL, "SPORN"},
-
-	{"Headphone", NULL, "Platform Clock"},
-	{"Headset Mic", NULL, "Platform Clock"},
-	{"Int Mic", NULL, "Platform Clock"},
-	{"Ext Spk", NULL, "Platform Clock"},
 };
 
 static const struct snd_kcontrol_new byt_mc_controls[] = {
@@ -920,7 +926,8 @@ static int byt_init(struct snd_soc_pcm_runtime *runtime)
 
 	/* FFRD8 uses codec's JD1 for jack detection */
 	if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, 8PR0) ||
-	    INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, 8PR1)) {
+	    INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, 8PR1) ||
+	    ASUS_USE_SOC_JD_GPIO) {
 		/* If SoC jack detect GPIO is used, disable JD functionality
 		   via codec. Also disable JD interrupt.*/
 		if (ctx->use_soc_jd_gpio) {
@@ -1129,7 +1136,7 @@ static int snd_byt_mc_probe(struct platform_device *pdev)
 	int ret_val = 0;
 	struct byt_mc_private *drv;
 	int codec_gpio;
-	int jd_gpio;
+	int jd_gpio, reset_gpio, err;
 
 	pr_debug("Entry %s\n", __func__);
 
@@ -1167,7 +1174,7 @@ static int snd_byt_mc_probe(struct platform_device *pdev)
 	   codec interrupt is used for button press alone. On PR0 and RVP there is
 	   only one GPIO(codec->SoC)for Jack/Button detection. Hence both jack
 	   detection and button press are handled via codec interrupt. */
-	if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, 8PR1)) {
+	if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, 8PR1) || ASUS_USE_SOC_JD_GPIO) {
 		/*Get the direct jack detect GPIO (jack -> soc GPIO). */
 		jd_gpio = acpi_get_gpio("\\_SB.GPO2", 27);
 		if (jd_gpio >= 0) {
@@ -1179,21 +1186,20 @@ static int snd_byt_mc_probe(struct platform_device *pdev)
 			drv->use_soc_jd_gpio = true;
 		} else
 			pr_err("%s: Could not get Jack det GPIO. Use codec GPIO instead", __func__);
-
-
-		/* Configure GPIO_SCORE56 for BT SCO workaround on FFRD8 PR1 */
-		drv->tristate_buffer_gpio = acpi_get_gpio("\\_SB.GPO0", 56);
-		ret_val = devm_gpio_request_one(&pdev->dev,
-					drv->tristate_buffer_gpio,
-					GPIOF_OUT_INIT_LOW,
-					"byt_ffrd8_tristate_buffer_gpio");
-		if (ret_val) {
-			pr_err("Tri-state buffer gpio config failed %d\n",
-				ret_val);
-			return ret_val;
+		if (!ASUS_USE_SOC_JD_GPIO) {
+			/* Configure GPIO_SCORE56 for BT SCO workaround on FFRD8 PR1 */
+			drv->tristate_buffer_gpio = acpi_get_gpio("\\_SB.GPO0", 56);
+			ret_val = devm_gpio_request_one(&pdev->dev,
+						drv->tristate_buffer_gpio,
+						GPIOF_OUT_INIT_LOW,
+						"byt_ffrd8_tristate_buffer_gpio");
+			if (ret_val) {
+				pr_err("Tri-state buffer gpio config failed %d\n",
+					ret_val);
+				return ret_val;
+			}
 		}
 	}
-
 	/* register the soc card */
 	snd_soc_card_byt.dev = &pdev->dev;
 	snd_soc_card_set_drvdata(&snd_soc_card_byt, drv);
@@ -1203,6 +1209,18 @@ static int snd_byt_mc_probe(struct platform_device *pdev)
 		return ret_val;
 	}
 	platform_set_drvdata(pdev, &snd_soc_card_byt);
+
+	/* get the reset -> SoC GPIO */
+	reset_gpio = acpi_get_gpio_by_index(&pdev->dev, 2, NULL);
+	err = gpio_request(reset_gpio, "CODEC_RESET");
+	if(err)
+		pr_debug("%s: reset_gpio request failed", __func__);
+	else
+		pr_debug("%s: reset_gpio = %d", __func__, reset_gpio);
+	err = gpio_direction_output(reset_gpio, 1);
+	if(err)
+		pr_debug("%s: gpio_direction_output(reset_gpio, 0) failed", __func__);
+
 	pr_info("%s successful\n", __func__);
 	return ret_val;
 }

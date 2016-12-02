@@ -15,7 +15,11 @@
 #include <asm/intel-mid.h>
 #include <linux/gpio.h>
 
-#define UART_PORT_NO 0 /* Bluetooth is using UART port number 0 */
+#ifdef BT_UART1_WORKAROUND
+#define UART_PORT_NO 1 /* Bluetooth is using UART port number 0 */
+#else
+#define UART_PORT_NO 0 /* Bluetooth is using UART port number 1 */
+#endif
 
 #define LPM_ON
 

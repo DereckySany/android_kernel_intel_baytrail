@@ -20,7 +20,9 @@ snd-soc-cq93vc-objs := cq93vc.o
 snd-soc-cs42l51-objs := cs42l51.o
 snd-soc-cs42l52-objs := cs42l52.o
 snd-soc-lm49453-objs := lm49453.o
-snd-soc-rt5640-objs := rt5640.o rt5640_ioctl.o rt56xx_ioctl.o
+snd-soc-rt5640-objs := rt5640.o rt5640_ioctl.o rt56xx_ioctl.o rt5640-dsp.o
+snd-soc-rt5640-1-objs := rt5640_tf103c.o rt5640_ioctl_tf103c.o rt56xx_ioctl.o rt5640-dsp.o
+snd-soc-rt5640-2-objs := rt5640_tf303cl.o rt5640_ioctl_tf303cl.o rt56xx_ioctl.o rt5640-dsp.o
 snd-soc-rt5642-objs := rt5640.o rt5640-dsp.o rt5640_ioctl.o rt56xx_ioctl.o
 snd-soc-rt5672-objs := rt5670.o rt5670-dsp.o rt5670_ioctl.o rt_codec_ioctl.o
 snd-soc-rt5671-objs := rt5671.o rt5671-dsp.o rt5671_ioctl.o rt_codec_ioctl.o
@@ -152,6 +154,8 @@ obj-$(CONFIG_SND_SOC_ALC5632)	+= snd-soc-alc5632.o
 obj-$(CONFIG_SND_SOC_ARIZONA)	+= snd-soc-arizona.o
 obj-$(CONFIG_SND_SOC_CQ0093VC) += snd-soc-cq93vc.o
 obj-$(CONFIG_SND_SOC_LM49453) += snd-soc-lm49453.o
+obj-$(CONFIG_SND_SOC_RT5640_2) += snd-soc-rt5640-2.o
+obj-$(CONFIG_SND_SOC_RT5640_1) += snd-soc-rt5640-1.o
 obj-$(CONFIG_SND_SOC_RT5640) += snd-soc-rt5640.o
 obj-$(CONFIG_SND_SOC_RT5642) += snd-soc-rt5642.o
 obj-$(CONFIG_SND_SOC_RT5672) += snd-soc-rt5672.o
@@ -260,3 +264,9 @@ obj-$(CONFIG_SND_SOC_WM_HUBS)	+= snd-soc-wm-hubs.o
 # Amp
 obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
 obj-$(CONFIG_SND_SOC_TPA6130A2)	+= snd-soc-tpa6130a2.o
+
+ifneq ($(wildcard $(srctree)/sound/soc/codecs/$(TARGET_PRODUCT)), )
+	EXTRA_CFLAGS += -I$(srctree)/sound/soc/codecs/$(TARGET_PRODUCT)
+else
+	EXTRA_CFLAGS += -I$(srctree)/sound/soc/codecs/default
+endif

@@ -4480,6 +4480,11 @@ int sdhci_add_host(struct sdhci_host *host)
 			(host->quirks2 & SDHCI_QUIRK2_V2_0_SUPPORT_DDR50))
 		mmc->caps |= MMC_CAP_UHS_DDR50;
 
+    /* CLK cannot be stabilized at DDR mode, only use SDR 104/50/25/12 mode */
+#ifdef CONFIG_TF103CE
+    if (!strcmp(mmc_hostname(host->mmc), "mmc2"))
+        mmc->caps &= ~MMC_CAP_UHS_DDR50;
+#endif
 	/* Does the host need tuning for SDR50? */
 	if (caps[1] & SDHCI_USE_SDR50_TUNING)
 		host->flags |= SDHCI_SDR50_NEEDS_TUNING;

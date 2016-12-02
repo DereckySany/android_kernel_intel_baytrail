@@ -110,6 +110,19 @@ MODULE_PARM_DESC(mipi_panel_id,
 		"MIPI Panel selection in case MIPI block is not present in VBT "
 		"(-1=auto [default], mipi panel id)");
 
+#if defined(CONFIG_TF103CE) || defined(CONFIG_TF303CL)
+int hdmi_connect_state __read_mostly = 0;
+module_param_named(hdmi_state, hdmi_connect_state, int, 0644);
+MODULE_PARM_DESC(hdmi_state,
+		 "Show hdmi status");
+
+int i915_pre_emp_vswing_setting __read_mostly = 0;
+module_param_named(pre_emp_vswing_setting, i915_pre_emp_vswing_setting, int, 0600);
+MODULE_PARM_DESC(pre_emp_vswing_setting,
+		 "Need to get HDMI pre-emp, vswing settings from VBT."
+		 "(definitions: 0 = 1000MV_2DB ,1 = 1000MV_0DB, 2 = 800MV_0DB, 3 = 600MV_2DB, 4 = 600MV_0DB)");
+#endif
+
 static bool i915_try_reset __read_mostly = true;
 module_param_named(reset, i915_try_reset, bool, 0600);
 MODULE_PARM_DESC(reset, "Attempt GPU resets (default: true)");

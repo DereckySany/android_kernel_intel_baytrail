@@ -195,7 +195,7 @@ void vvx09f006a00_panel_reset(struct intel_dsi_device *dsi)
 		vlv_gpio_nc_write(dev_priv, 0x40F8, 0x00000005);
 	} else
 		intel_mid_pmic_writeb(0x52, 0x01);
-	usleep_range(85000, 90000);
+	usleep_range(120000, 130000);
 }
 
 void  vvx09f006a00_disable_panel_power(struct intel_dsi_device *dsi)
@@ -237,8 +237,10 @@ static void vvx09f006a00_dpms(struct intel_dsi_device *dsi, bool enable)
 bool vvx09f006a00_init(struct intel_dsi_device *dsi)
 {
 	struct intel_dsi *intel_dsi = container_of(dsi, struct intel_dsi, dev);
+#ifndef ASUS_PROJECT_TF303CL
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+#endif
 	DRM_DEBUG_KMS("Init: Panasonic panel\n");
 
 	if (!dsi) {
@@ -268,11 +270,13 @@ bool vvx09f006a00_init(struct intel_dsi_device *dsi)
 	intel_dsi->send_shutdown = true;
 	intel_dsi->shutdown_pkt_delay = 20;
 
+#ifndef ASUS_PROJECT_TF303CL
 	/* In the default VBT of UEFI GOP,rotation bit is not set.
 	 * In order to make FFRD8 work on UEFI GOP with default VBT,
 	 * hardcoding rotation bit to 1 only for Panasonic MIPI Panel */
 	if (!(dev_priv->vbt.is_180_rotation_enabled) && !(BYT_CR_CONFIG))
 		dev_priv->vbt.is_180_rotation_enabled = 1;
+#endif
 
 	return true;
 }

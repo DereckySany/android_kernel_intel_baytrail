@@ -44,6 +44,7 @@
 #include <linux/mmc/pm.h>
 #include <linux/mmc/sdhci.h>
 #include <linux/mmc/slot-gpio.h>
+#include <linux/mmc/card.h>
 
 #include <asm/spid.h>
 #include <asm/cpu_device_id.h>
@@ -264,6 +265,86 @@ static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
 	.ops = &sdhci_acpi_ops_int,
 };
 
+#define SDHCI_PLATFORMDEV_2_MMCHOST(dev) \
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev); \
+	struct sdhci_acpi_host *chip; \
+	struct sdhci_host *host; \
+	struct mmc_host *mmc; \
+	chip = platform_get_drvdata(pdev); \
+	if (!chip) \
+		return 0; \
+	host = chip->host; \
+	if(!host) \
+		return 0; \
+	mmc = host->mmc; \
+	if(!mmc) \
+		return 0;
+
+/* total size is 2^n GB, e.g: 4/8/16/32/64/128 */
+static ssize_t sdhci_eMMC_total_size(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int i;
+	SDHCI_PLATFORMDEV_2_MMCHOST(dev)
+
+	if (mmc->card) {
+		i = fls(mmc->card->ext_csd.sectors);
+		if (i > 21)
+			return snprintf(buf, PAGE_SIZE, "%d\n", (mmc->card->ext_csd.sectors >> (i - 1)) << (i - 21));/* 4GB or above */
+        else
+			pr_err("wrong sector count");
+	}
+	return 0;
+}
+
+#ifdef ASUS_FACTORY
+static ssize_t sdhci_eMMC_name(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	SDHCI_PLATFORMDEV_2_MMCHOST(dev)
+
+	return snprintf(buf,PAGE_SIZE,"%s\n",mmc->card->cid.prod_name);
+}
+
+static ssize_t sdhci_eMMC_fw(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	uint32_t bit;
+
+	SDHCI_PLATFORMDEV_2_MMCHOST(dev)
+
+    // PRV is located at CID[48:55], which is in the raw_cid[2] 
+	bit = mmc->card->raw_cid[2];
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", (bit >> 16) & 0xff);
+}
+
+static ssize_t sdhci_eMMC_sector_size(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	SDHCI_PLATFORMDEV_2_MMCHOST(dev)
+
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", mmc->card->ext_csd.sectors);
+}
+#endif
+
+#ifdef ASUS_FACTORY
+static DEVICE_ATTR(eMMC_name, S_IRUGO, sdhci_eMMC_name, NULL);
+static DEVICE_ATTR(eMMC_fw, S_IRUGO, sdhci_eMMC_fw, NULL);
+static DEVICE_ATTR(eMMC_size, S_IRUGO, sdhci_eMMC_sector_size, NULL);
+#endif
+static DEVICE_ATTR(eMMC_total_size, S_IRUGO, sdhci_eMMC_total_size, NULL);
+
+static struct attribute *acpi_dev_emmc_attrs[] = {
+#ifdef ASUS_FACTORY
+    &dev_attr_eMMC_name.attr,
+    &dev_attr_eMMC_fw.attr,
+    &dev_attr_eMMC_size.attr,
+#endif
+	&dev_attr_eMMC_total_size.attr,
+	NULL,
+};
+
+static struct attribute_group dev_emmc_attr_grp = {
+	.attrs = acpi_dev_emmc_attrs,
+};
+
 static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev)
 {
 	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
@@ -296,7 +377,7 @@ static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev)
 	default:
 		break;
 	}
-
+	sysfs_create_group(&pdev->dev.kobj, &dev_emmc_attr_grp);
 	return 0;
 }
 
@@ -340,8 +421,12 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_emmc = {
 	.caps    = MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE | MMC_CAP_HW_RESET
 		| MMC_CAP_1_8V_DDR,
 	.caps2   = MMC_CAP2_HC_ERASE_SZ | MMC_CAP2_POLL_R1B_BUSY |
+#ifndef CONFIG_MMC_DISABLE_HS200_HS400
 		MMC_CAP2_BOOTPART_NOACC | MMC_CAP2_RPMBPART_NOACC |
 		MMC_CAP2_HS200_1_8V_SDR,
+#else
+		MMC_CAP2_BOOTPART_NOACC | MMC_CAP2_RPMBPART_NOACC,
+#endif
 	.flags   = SDHCI_ACPI_RUNTIME_PM,
 	.probe_slot	= sdhci_acpi_emmc_probe_slot,
 };
@@ -355,6 +440,37 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 		MMC_PM_WAKE_SDIO_IRQ,
 	.probe_slot	= sdhci_acpi_sdio_probe_slot,
 };
+
+#ifdef ASUS_FACTORY
+
+static ssize_t sdhci_sd_status(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct sdhci_acpi_host *c;
+	c = platform_get_drvdata(pdev);
+
+	if (!c)
+		return 0;
+
+	if (sdhci_acpi_flag(c, SDHCI_ACPI_SD_CD) && c->cd_gpio != -ENODEV)
+		return snprintf(buf, PAGE_SIZE, "1\n");
+	else
+		// return snprintf(buf, PAGE_SIZE, " c->slot: %X c->slot->flags: %X SDHCI_ACPI_SD_CD: %X c->cd_gpio: %d\n", c->slot, c->slot->flags,SDHCI_ACPI_SD_CD,c->cd_gpio);
+		return snprintf(buf, PAGE_SIZE, "0\n");
+}
+
+static DEVICE_ATTR(sd_status, S_IRUGO, sdhci_sd_status, NULL);
+
+static struct attribute *acpi_dev_sd_attrs[] = {
+	&dev_attr_sd_status.attr,
+	NULL,
+};
+
+static struct attribute_group dev_sd_attr_grp = {
+	.attrs = acpi_dev_sd_attrs,
+};
+
+#endif
 
 static int sdhci_acpi_sd_probe_slot(struct platform_device *pdev)
 {
@@ -397,7 +513,9 @@ static int sdhci_acpi_sd_probe_slot(struct platform_device *pdev)
 		pm_qos_add_request(host->mmc->qos, PM_QOS_CPU_DMA_LATENCY,
 				PM_QOS_DEFAULT_VALUE);
 	}
-
+#ifdef ASUS_FACTORY
+	sysfs_create_group(&pdev->dev.kobj, &dev_sd_attr_grp);
+#endif
 	return 0;
 }
 

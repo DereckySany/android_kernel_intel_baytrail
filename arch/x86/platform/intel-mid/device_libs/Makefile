@@ -8,6 +8,9 @@ obj-$(CONFIG_REGULATOR_WHISKEY_COVE) += platform_cht_wcove_regulator.o
 obj-y += platform_mofd_regulator.o
 obj-y += platform_soc_thermal.o
 obj-$(subst m,y,$(CONFIG_SND_BYT_MACHINE)) += platform_byt_audio.o
+obj-$(subst m,y,$(CONFIG_SND_TF103C_MACHINE)) += platform_byt_audio.o
+obj-$(subst m,y,$(CONFIG_SND_TF303CL_MACHINE)) += platform_byt_audio.o
+obj-$(subst m,y,$(CONFIG_SND_BYT_RT5640_MACHINE)) += platform_byt_audio.o
 obj-$(subst m,y,$(CONFIG_SND_CHT_MACHINE)) += platform_byt_audio.o
 obj-$(subst m,y,$(CONFIG_SND_MRFLD_MACHINE)) += platform_mrfld_audio.o
 obj-$(subst m,y,$(CONFIG_SND_MOOR_MACHINE)) += platform_mrfld_audio.o
@@ -31,6 +34,11 @@ obj-$(subst m,y,$(CONFIG_SENSORS_MID_VDD)) += platform_msic_vdd.o
 obj-$(subst m,y,$(CONFIG_SENSORS_MRFL_OCD)) += platform_mrfl_ocd.o
 obj-$(subst m,y,$(CONFIG_PMIC_CCSM)) += platform_mrfl_pmic.o
 obj-$(subst m,y,$(CONFIG_I2C_PMIC)) += platform_mrfl_pmic_i2c.o
+# Webber Thermal ++++++++++++++++++++++++++++++
+ifneq (,$(filter ME176C,$(ASUS_PROJECT)))
+obj-$(subst m,y,$(CONFIG_ME176C)) += platform_byt_thermal_me176c.o
+else
+
 ifdef CONFIG_INTEL_BYT_THERMAL
 obj-$(subst m,y,$(CONFIG_INTEL_BYT_THERMAL)) += platform_byt_thermal.o
 else
@@ -39,6 +47,9 @@ obj-$(subst m,y,$(CONFIG_INTEL_BYT_CR_THERMAL)) += platform_byt_thermal.o
 endif
 obj-$(subst m,y,$(CONFIG_INTEL_BYT_EC_THERMAL)) += platform_byt_thermal.o
 endif
+
+endif
+# Webber Thermal ------------------------------
 obj-$(subst m,y,$(CONFIG_SENSORS_THERMAL_MRFLD)) += platform_mrfl_thermal.o
 obj-$(subst m,y,$(CONFIG_INTEL_MOOR_THERMAL)) += platform_moor_thermal.o
 obj-$(subst m,y,$(CONFIG_INTEL_SCU_FLIS)) += platform_scu_flis.o
@@ -90,6 +101,9 @@ obj-$(subst m,y,$(CONFIG_WHISKEY_COVE))	+= platform_bcove_adc.o
 obj-$(subst m,y,$(CONFIG_IIO_SCALE_GPADC))	+= platform_scale_adc.o
 # UART Devices
 obj-$(subst m,y,$(CONFIG_SERIAL_MFD_HSU_EXT)) += platform_hsu.o
+ifneq (,$(filter ME181C ME176C,$(ASUS_PROJECT)))
+    KBUILD_CFLAGS += -DBT_UART1_WORKAROUND
+endif
 # SD Devices
 obj-$(subst m,y,$(CONFIG_WILINK_PLATFORM_DATA)) += platform_wl12xx.o
 ifndef CONFIG_ACPI
@@ -102,6 +116,9 @@ obj-$(subst m,y,$(CONFIG_VIDEO_ATOMISP_TMP))				+= platform_camera_css15.o
 else
 obj-$(subst m,y,$(CONFIG_VIDEO_ATOMISP_TMP))				+= platform_camera.o
 endif
+obj-$(subst m,y,$(CONFIG_VIDEO_HM2056))                                 += platform_hm2056.o
+obj-$(subst m,y,$(CONFIG_VIDEO_GC0339))                                 += platform_gc0339.o
+obj-$(subst m,y,$(CONFIG_VIDEO_GC2155_RAW))				+= platform_gc2155.o
 ifdef CONFIG_VIDEO_ATOMISP_TMP
 obj-$(subst m,y,$(CONFIG_VIDEO_MT9E013))				+= platform_mt9e013.o
 obj-$(subst m,y,$(CONFIG_VIDEO_MT9D113))				+= platform_mt9d113.o
@@ -131,6 +148,19 @@ obj-$(subst m,y,$(CONFIG_VIDEO_M10MO))					+= platform_m10mo.o
 obj-$(subst m,y,$(CONFIG_VIDEO_PIXTER))					+= platform_pixter.o
 obj-$(subst m,y,$(CONFIG_VIDEO_AR0543_RAW))				+= platform_ar0543_raw.o
 obj-$(subst m,y,$(CONFIG_VIDEO_HM2056_RAW))				+= platform_hm2056_raw.o
+obj-$(subst m,y,$(CONFIG_VIDEO_AR0543))					+= platform_ar0543.o
+obj-$(subst m,y,$(CONFIG_VIDEO_GC2155))					+= platform_gc2155.o
+obj-$(subst m,y,$(CONFIG_VIDEO_GC0310))					+= platform_gc0310.o
+
+#Camera info
+ifneq ($(wildcard $(srctree)/arch/x86/platform/intel-mid/device_libs/camera_info/$(TARGET_PRODUCT)),)
+KBUILD_CFLAGS += -I$(srctree)/arch/x86/platform/intel-mid/device_libs/camera_info/$(TARGET_PRODUCT)
+obj-y += camera_info/$(TARGET_PRODUCT)/
+else
+KBUILD_CFLAGS += -I$(srctree)/arch/x86/platform/intel-mid/device_libs/camera_info/default
+obj-y += camera_info/default/
+endif
+
 endif
 
 obj-$(subst m,y,$(CONFIG_EXTCON_USB))					+= platform_extcon_usb.o
@@ -161,3 +191,16 @@ obj-y += platform_display.o
 
 # Add cflags to build for CTP board
 ccflags-$(CONFIG_VIDEO_ATOMISP_CTP) += -DCSS15
+
+# Battery tom: (((
+obj-$(subst m,y,$(CONFIG_ASUS_BATTERY_TF103CE_CHARGER))                         += platform_tf103ce_smb358.o
+obj-$(subst m,y,$(CONFIG_ASUS_TF303CL_BATTERY_SMB347))		                += platform_tf303cl_smb347.o
+obj-$(subst m,y,$(CONFIG_ASUS_TF303CL_BATTERY_BQ27541))		                += platform_tf303cl_bq27541.o
+obj-$(subst m,y,$(CONFIG_ASUS_BATTERY_TF103C_UPI_BATTERY))                      += platform_tf103c_ug3105.o
+obj-$(subst m,y,$(CONFIG_ASUS_BATTERY_TF103C_CHARGER_BQ24192))                  += platform_tf103c_bq24192.o
+# )))
+
+# Battery Carlisle: (((
+obj-$(subst m,y,$(CONFIG_ASUS_BATTERY_ME176C_UPI_BATTERY))                      += platform_me176c_ug3105.o
+obj-$(subst m,y,$(CONFIG_ASUS_BATTERY_ME176C_CHARGER_BQ24192))                  += platform_me176c_bq24192.o
+# )))

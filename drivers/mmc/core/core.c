@@ -29,9 +29,8 @@
 #include <linux/slab.h>
 #include <linux/wakelock.h>
 #include <linux/intel_mid_pm.h>
-
 #include <trace/events/mmc.h>
-
+#include <linux/slab.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
@@ -1942,10 +1941,66 @@ static unsigned int mmc_erase_timeout(struct mmc_card *card,
 static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 			unsigned int to, unsigned int arg)
 {
+	struct mmc_request mrq = {NULL};
 	struct mmc_command cmd = {0};
 	unsigned int qty = 0;
 	unsigned int fr, nr;
 	int err;
+	struct mmc_data data = {0};
+	struct scatterlist sg;
+	void *data_buf;
+	
+	//add dummy read for Hynix eMMC 4.5 0x03 fw
+	if(card->cid.manfid == 0x90 &&
+	  card->cid.fwrev == 0x03 &&
+	  card->ext_csd.rev == 6) {
+		cmd.opcode = MMC_READ_SINGLE_BLOCK;
+		cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
+		cmd.arg = from;
+
+		data_buf = kmalloc(512, GFP_KERNEL);
+		if (data_buf == NULL)
+			return -ENOMEM;
+
+		mrq.cmd = &cmd;
+		mrq.data = &data;
+
+		data.blksz = 512;
+		data.blocks = 1;
+		data.flags = MMC_DATA_READ;
+		data.sg = &sg;
+		data.sg_len = 1;
+
+		sg_init_one(&sg, data_buf, 512);
+
+		mmc_set_data_timeout(&data, card);
+
+		mmc_wait_for_req(card->host, &mrq);
+		kfree(data_buf);
+
+		if (cmd.error)
+			return cmd.error;
+		if (data.error)
+			return data.error;
+
+		do {
+			memset(&cmd, 0, sizeof(struct mmc_command));
+			cmd.opcode = MMC_SEND_STATUS;
+			cmd.arg = card->rca << 16;
+			cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+			/* Do not retry else we can't see errors */
+			err = mmc_wait_for_cmd(card->host, &cmd, 0);
+			if (err || (cmd.resp[0] & 0xFDF92000)) {
+				pr_err("error %d requesting status %#x\n",
+					err, cmd.resp[0]);
+				err = -EIO;
+				goto out;
+			}
+		} while (!(cmd.resp[0] & R1_READY_FOR_DATA) ||
+			R1_CURRENT_STATE(cmd.resp[0]) == R1_STATE_PRG);
+
+		memset(&cmd, 0, sizeof(struct mmc_command));
+	}
 
 	fr = from;
 	nr = to - from + 1;

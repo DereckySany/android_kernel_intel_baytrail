@@ -51,9 +51,9 @@ extern const struct intel_v4l2_subdev_id v4l2_ids[] __attribute__((weak));
 #define GP_CAMERA_SUB_CAM_PWDN		"SUB_CAM_PWDN"
 
 /* Obsolete pin, maybe used by old MFLD iCDK */
-#define GP_CAMERA_0_POWER_DOWN          "cam0_vcm_2p8"
+#define GP_CAMERA_0_POWER_DOWN      "cam0_vcm_2p8"
 /* Camera VDD 1.8V Switch */
-#define GP_CAMERA_1P8			"camera_on_n"
+#define GP_CAMERA_1P8               "camera_on_n"
 /* Camera0 Standby pin control */
 #define GP_CAMERA_0_STANDBY		"camera_0_power"
 #define GP_CAMERA_1_POWER_DOWN          "camera_1_power"
@@ -108,10 +108,15 @@ struct vprog_status {
  * since currently no VRF for CHT
  */
 #ifdef CONFIG_CRYSTAL_COVE
-#define VPROG_2P8V 0x5D
-#define VPROG_1P8V 0x57
-#define VPROG_ENABLE 0x63
-#define VPROG_DISABLE 0x62
+#define VPROG_2P8V 0x66
+#define VPROG_1P8V 0x5D
+
+#define VPROG_ENABLE 0x01
+#define VPROG_DISABLE 0x00
+
+#define VPROG_SET_ENABLE 0x03
+#define VPROG_SET_DISABLE 0x02
+
 
 enum camera_pmic_pin {
 	CAMERA_1P8V,
@@ -144,7 +149,7 @@ enum camera_vprog_voltage {
 };
 
 int camera_set_vprog_power(enum camera_vprog vprog, bool flag,
-			   enum camera_vprog_voltage voltage);
+			enum camera_vprog_voltage voltage);
 #endif
 
 #endif

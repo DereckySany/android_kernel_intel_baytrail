@@ -123,10 +123,17 @@ static struct gpio_keys_button lesskey_button_rolock[] = {
 	{ },
 };
 
+#if defined(CONFIG_TF103C) || defined(CONFIG_TF103CE) || defined(CONFIG_TF303CL)
 static struct gpio_keys_button lesskey_button_vol[] = {
-	{KEY_VOLUMEUP,		-1, 1, "volume_up",	EV_KEY, .acpi_idx = 2},
-	{KEY_VOLUMEDOWN,	-1, 1, "volume_down",	EV_KEY, .acpi_idx = 3},
+	{KEY_VOLUMEUP,		-1, 1, "volume_up",	EV_KEY, .acpi_idx = 1},
+	{KEY_VOLUMEDOWN,	-1, 1, "volume_down",	EV_KEY, .acpi_idx = 2},
 };
+#else
+static struct gpio_keys_button lesskey_button_vol[] = {
+        {KEY_VOLUMEUP,          -1, 1, "volume_up",     EV_KEY, .acpi_idx = 2, 1},
+        {KEY_VOLUMEDOWN,        -1, 1, "volume_down",   EV_KEY, .acpi_idx = 3, 1},
+};
+#endif
 
 struct gpio_keys_init_data {
 	struct gpio_keys_button *keys_button;

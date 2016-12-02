@@ -216,10 +216,17 @@ i915_dpst_apply_luma(struct drm_device *dev,
 	ioctl_data->ie_container.dpst_blc_factor;
 
 	level = i915_dpst_compute_brightness(dev, dev_priv->backlight.level);
+#if defined(CONFIG_TF103CE) || defined(CONFIG_TF303CL)
+	if (dev_priv->dpst.pre_backlight_level != level) {
+		intel_panel_actually_set_backlight(dev, level);
+		dev_priv->dpst.pre_backlight_level = level;
+	}
+#else
 	if (dev_priv->is_mipi)
 		intel_panel_actually_set_mipi_backlight(dev, level);
 	else
 		intel_panel_actually_set_backlight(dev, level);
+#endif
 
 	/* Enable Image Enhancement Table */
 	blm_hist_ctl = I915_READ(BLC_HIST_CTL);

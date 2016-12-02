@@ -227,6 +227,14 @@ config DRM_SAVAGE
 	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
 	  chipset. If M is selected the module will be called savage.
 
+
+config DRM_I915_HDMI_OUTPUT
+	bool "Enable HDMI support"
+	depends on DRM_I915
+	default n
+	help
+	  Choose this option if you want HDMI support within the i915 driver.
+
 source "drivers/gpu/drm/exynos/Kconfig"
 
 source "drivers/gpu/drm/vmwgfx/Kconfig"

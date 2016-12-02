@@ -166,23 +166,23 @@ static void update_log_from_bottom(struct logger_log *log_orig,
 static void write_console(struct work_struct *work)
 {
 	struct logger_log *log_bot = get_log_from_name(LOGGER_LOG_KERNEL_BOT);
-	struct logger_log *log_out = get_log_from_name(LOGGER_LOG_MAIN);
+	struct logger_log *log_kernel = get_log_from_name(LOGGER_LOG_KERNEL);
 
-	update_log_from_bottom(log_bot, log_out);
+	update_log_from_bottom(log_bot, log_kernel);
 }
 
 static void
 logger_console_write(struct console *console, const char *s, unsigned int count)
 {
 	struct logger_log *log_bot = get_log_from_name(LOGGER_LOG_KERNEL_BOT);
-	struct logger_log *log_out = get_log_from_name(LOGGER_LOG_MAIN);
+	struct logger_log *log_kernel = get_log_from_name(LOGGER_LOG_KERNEL);
 
 	if (!log_bot)
 		return;
 
 	flush_to_bottom_log(log_bot, s, count);
 
-	if (unlikely(!log_out))
+	if (unlikely(!log_kernel))
 		return;
 	if (unlikely(!keventd_up()))
 		return;
@@ -299,3 +299,14 @@ out:
 }
 
 console_initcall(logger_console_init);
+
+static int __init logger_kernel_init(void)
+{
+	int ret;
+	if (!(logger_console.flags & CON_ENABLED))
+		return 0;
+
+	ret = create_log(LOGGER_LOG_KERNEL, 512*1024);
+	return ret;
+}
+device_initcall(logger_kernel_init);

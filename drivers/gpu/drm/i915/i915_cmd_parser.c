@@ -178,8 +178,10 @@ int i915_parse_cmds(struct intel_ring_buffer *ring,
 				    !valid_reg(append_table,
 					       append_count,
 					       reg_addr)) {
+#if !defined(CONFIG_TF103C) && !defined(CONFIG_TF103CE) && !defined(CONFIG_ME181C)
 					DRM_ERROR("CMD: Rejected register 0x%08X in command: 0x%08X (ring=%d)\n",
 							 reg_addr, *cmd, ring->id);
+#endif
 					ret = -EINVAL;
 					break;
 				}

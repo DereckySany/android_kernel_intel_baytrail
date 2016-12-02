@@ -129,6 +129,11 @@
 #include "device_libs/platform_pixter.h"
 #include "device_libs/platform_ar0543_raw.h"
 #include "device_libs/platform_hm2056_raw.h"
+//ASUS_BSP+++, camera driver
+#include "device_libs/platform_hm2056.h"
+#include "device_libs/platform_gc2155.h"
+#include "device_libs/platform_gc0339.h"
+//ASUS_BSP---, camera driver
 
 /*
  * SPI devices
@@ -314,6 +319,15 @@ struct devs_id __initconst device_ids[] = {
 						&ipc_device_handler},
 
 	/* I2C devices for camera image subsystem */
+//ASUS_BSP+++, camera driver
+#if defined(CONFIG_TF103C) || defined(CONFIG_TF103CE)
+	{"hm2056b", SFI_DEV_TYPE_I2C, 0, &hm2056b_platform_data,
+					&intel_register_i2c_camera_device},
+	{"gc2155", SFI_DEV_TYPE_I2C, 0, &gc2155_platform_data,
+					&intel_register_i2c_camera_device},
+	{"gc0339", SFI_DEV_TYPE_I2C, 0, &gc0339_platform_data,
+					&intel_register_i2c_camera_device},
+#else
 	{"lm3554", SFI_DEV_TYPE_I2C, 0, &lm3554_platform_data_func,
 					&intel_register_i2c_camera_device},
 	{"lm3642", SFI_DEV_TYPE_I2C, 0, &lm3642_platform_data_func,
@@ -372,6 +386,8 @@ struct devs_id __initconst device_ids[] = {
 					&intel_register_i2c_camera_device},
 	{"hm2056_raw", SFI_DEV_TYPE_I2C, 0, &hm2056_raw_platform_data,
 					&intel_register_i2c_camera_device},
+#endif
+//ASUS_BSP---, camera driver
 #if defined(CONFIG_VIDEO_CSI_XACTOR_MODULE) || defined(CONFIG_VIDEO_CSI_XACTOR)
 	{"xactor_a", SFI_DEV_TYPE_I2C, 0, &csi_xactor_a_platform_data,
 					&intel_register_i2c_camera_device},

@@ -38,6 +38,9 @@
 #include "intel_dsi.h"
 #include "intel_dsi_cmd.h"
 #include "dsi_mod_vbt_generic.h"
+#if defined (CONFIG_ME176CE)
+#include <linux/gpio.h>
+#endif
 
 struct gpio_table gtable[] = {
 	{ GPI0_NC_0_HV_DDI0_HPD, GPIO_NC_0_HV_DDI0_PAD, 0 },
@@ -594,6 +597,23 @@ void generic_disable_panel_power(struct intel_dsi_device *dsi)
 
 	char *sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET];
 
+#if defined (CONFIG_ME176CE)
+	int err;
+	DRM_ERROR("generic_disable_panel_power\n");
+	err = gpio_request(69, "sd_pwr_en1");
+	if (err){
+		DRM_ERROR("Request gpio 69 fail\n");
+	}
+
+	msleep(134); //t8 > 8 frames 8 * 16.67
+	gpio_direction_output(69, 0);
+	gpio_set_value(69, 0); //RESX low
+	gpio_free(69);
+	msleep(20);	//t12 >= 0
+
+	DRM_ERROR("pull low reset pin success\n");
+#endif
+
 	generic_exec_sequence(intel_dsi, sequence);
 }
 
@@ -604,6 +624,28 @@ void generic_send_otp_cmds(struct intel_dsi_device *dsi)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	char *sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
+
+#if defined (CONFIG_ME176CE)
+	int err;
+	DRM_ERROR("generic_send_otp_cmds\n");
+
+	err = gpio_request(69, "sd_pwr_en1");
+	if (err){
+		DRM_ERROR("Request gpio 69 fail\n");
+
+	}
+
+	gpio_direction_output(69, 0); //2 low pulse
+	gpio_set_value(69, 1);
+	usleep_range(1000,5000);
+	gpio_set_value(69, 0);
+	usleep_range(1000,5000); //t7
+	gpio_set_value(69, 1);
+	gpio_free(69);
+	msleep(20);
+
+	DRM_ERROR("pull high reset pin success\n");
+#endif
 
 	generic_exec_sequence(intel_dsi, sequence);
 }

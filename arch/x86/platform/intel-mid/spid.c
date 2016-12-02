@@ -48,6 +48,7 @@
 #include <asm/apb_timer.h>
 #include <asm/reboot.h>
 #include "intel_mid_weak_decls.h"
+#include <linux/switch.h>
 
 char intel_platform_ssn[INTEL_PLATFORM_SSN_SIZE + 1];
 struct soft_platform_id spid;
@@ -59,7 +60,9 @@ struct kobject *pidv_kobj;
 #endif
 
 struct kobject *spid_kobj;
-
+//Carlisle add for uefi version show in /sys/class/switch/ ++
+struct switch_dev uefi_dev;
+//Carlisle add for uefi version show in /sys/class/switch/ --
 /*
  *
  */
@@ -196,9 +199,7 @@ pidv_attr(pdr_version);
 static ssize_t ifwi_version_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%02d.%02d\n",
-		(pidv.iasvn / 100),
-		(pidv.iasvn % 100));
+	return sprintf(buf, "%s\n",pidv.ext_id_2);
 }
 pidv_attr(ifwi_version);
 
@@ -210,9 +211,27 @@ static struct attribute *pidv_attrs[] = {
 	NULL,
 };
 
+static ssize_t uefi_version_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n",pidv.ext_id_2);
+}
+pidv_attr(uefi_version);
+
+static struct attribute *pidv2_attrs[] = {
+	&uefi_version_attr.attr,
+	NULL,
+};
+
 static struct attribute_group pidv_attr_group = {
 	.attrs = pidv_attrs,
 };
+
+static struct attribute_group pidv2_attr_group = {
+	.attrs = pidv2_attrs,
+};
+
+
 
 static int acpi_pidv_revision;
 
@@ -282,20 +301,36 @@ static int __init acpi_spid_init(void)
 		goto err_sysfs_spid;
 	}
 
-	if (acpi_pidv_revision < 2) {
-		pidv_kobj = kobject_create_and_add("pidv", firmware_kobj);
-		if (!pidv_kobj) {
-			pr_err("SPID: ENOMEM for pidv_kobj\n");
-			ret = -ENOMEM;
-			goto err_kobj_create_pidv;
-		}
 
+	pidv_kobj = kobject_create_and_add("pidv", firmware_kobj);
+	if (!pidv_kobj) {
+		pr_err("SPID: ENOMEM for pidv_kobj\n");
+		ret = -ENOMEM;
+		goto err_kobj_create_pidv;
+	}
+
+
+	if (acpi_pidv_revision < 2) {
 		ret = sysfs_create_group(pidv_kobj, &pidv_attr_group);
 		if (ret) {
 			pr_err("SPID: failed to create /sys/%s/pidv\n",
 			       firmware_kobj->name);
 			goto err_sysfs_pidv;
 		}
+	}else {
+		ret = sysfs_create_group(pidv_kobj, &pidv2_attr_group);
+		if (ret) {
+			pr_err("SPID: failed to create /sys/%s/pidv\n",
+			       firmware_kobj->name);
+			goto err_sysfs_pidv;
+		}
+	}
+
+	/* register switch device for uefi information versions report */
+	uefi_dev.name = "ia_fw";
+	uefi_dev.print_name = uefi_version_show;
+	if (switch_dev_register(&uefi_dev) < 0) {
+		pr_err("%s: fail to register uefi switch\n", __func__);
 	}
 
 	/* Populate command line with SPID values */

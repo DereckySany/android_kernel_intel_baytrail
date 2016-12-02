@@ -172,4 +172,5 @@ source "drivers/reset/Kconfig"
 
 source "drivers/external_drivers/Kconfig"
 
+source "drivers/cpud/Kconfig"
 endmenu

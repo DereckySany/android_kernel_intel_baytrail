@@ -2436,6 +2436,42 @@ config PF450CL
        bool "ASUS PF450CL Product"
        depends on X86_MDFLD
 
+#add project
+config TF103C
+	bool "ASUS TF103C Product"
+	depends on X86
+	default n
+
+config TF103CE
+	bool "ASUS TF103CE Product"
+	depends on X86
+	default n
+
+config TF303CL
+	bool "ASUS TF303CL Product"
+	depends on X86
+	default n
+
+config ME181C
+	bool "ASUS ME181C Product"
+	depends on X86
+	default n
+
+config ME176C
+	bool "ASUS ME176C Product"
+	depends on X86
+	default n
+
+config ME176CE
+	bool "ASUS ME176CE Product"
+	depends on X86
+	default n
+
+config SLEEPING_BEAUTY
+	bool "ASUS sleeping beauty"
+	depends on X86
+	default n
+
 source "net/Kconfig"
 
 source "drivers/Kconfig"

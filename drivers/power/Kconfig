@@ -426,6 +426,47 @@ source "drivers/power/battery/Kconfig"
 endif
 source "drivers/power/reset/Kconfig"
 
+# Tom ((( battery driver
+source "drivers/power/ASUS_BATTERY/TF303CL/Kconfig"
+source "drivers/power/ASUS_BATTERY/TF103C/Kconfig"
+source "drivers/power/ASUS_BATTERY/TF103CE/Kconfig"
+# )))
+
+# Carlisle ((( battery driver
+source "drivers/power/ASUS_BATTERY/ME176C/Kconfig"
+# )))
+
+config UPI_BATTERY
+	tristate "UPI ug31xx"
+	default n
+	depends on I2C
+	help
+	  say Y to enable suspport for the ug31
+
+config CHARGER_SNB2808
+	tristate "TI CHARGER_SN2808 Charger"
+	default n
+	select POWER_SUPPLY_CHARGER
+	depends on I2C
+	help
+	  CHARGER_SN2808 is the charger chip for lithium-ion (Li+) batteries
+	  in handheld and portable equipment.
+
+	  Say Y here if you know your platform has this chip for charging
+	  support.
+
+config ASUS_CHARGER_SMB347
+	tristate "SMB347 battery charger driver"
+	default n
+        depends on I2C
+	help
+	  Say Y to enable support for the SMB347 switching mode based charger
+	  and sysfs. The driver supports controlling charger-enable and
+	  current limiting capabilities. The driver also lets the
+	  SMB347 be operated as a slave device via the power supply
+	  framework.
+
+
 endif # POWER_SUPPLY
 
 source "drivers/power/avs/Kconfig"

@@ -196,14 +196,14 @@ struct intel_dsi {
 	u16 port;
 
 	/* all delays in ms */
-	u16 backlight_off_delay;
-	u16 backlight_on_delay;
-	u16 panel_on_delay;
-	u16 panel_off_delay;
-	u16 panel_pwr_cycle_delay;
+	u8 backlight_off_delay;
+	u8 backlight_on_delay;
+	u8 panel_on_delay;
+	u8 panel_off_delay;
+	u8 panel_pwr_cycle_delay;
 
 	bool send_shutdown;
-	u16 shutdown_pkt_delay; /*in ms*/
+	u8 shutdown_pkt_delay; /*in ms*/
 	enum panel_fitter pfit;
 };
 
@@ -220,6 +220,11 @@ extern struct intel_dsi_dev_ops panasonic_vvx09f006a00_dsi_display_ops;
 extern struct intel_dsi_dev_ops auo_b080xat_dsi_display_ops;
 extern struct intel_dsi_dev_ops jdi_lpm070w425b_dsi_display_ops;
 extern struct intel_dsi_dev_ops vbt_generic_dsi_display_ops;
+extern struct intel_dsi_dev_ops b101ean01_dsi_display_ops;
+extern struct intel_dsi_dev_ops nov_m176_dsi_display_ops;
+extern struct intel_dsi_dev_ops innolux_m181_dsi_display_ops;
+extern struct intel_dsi_dev_ops auo_m181_dsi_display_ops;
+extern struct intel_dsi_dev_ops ivo_m181_dsi_display_ops;
 void intel_dsi_clear_device_ready(struct intel_encoder *encoder);
 
 #define	MIPI_DSI_UNDEFINED_PANEL_ID			0x00
@@ -228,5 +233,10 @@ void intel_dsi_clear_device_ready(struct intel_encoder *encoder);
 #define	MIPI_DSI_PANASONIC_VXX09F006A00_PANEL_ID	0x03
 #define	MIPI_DSI_AUO_B080XAT_PANEL_ID			0x04
 #define	MIPI_DSI_JDI_LPM070W425B_PANEL_ID		0x05
+#define	MIPI_DSI_NOV_M176_PANEL_ID		0x06
+#define	MIPI_DSI_AUO_B101EAN01_PANEL_ID         0x07
+#define MIPI_DSI_INNOLUX_M181_PANEL_ID		0x08
+#define MIPI_DSI_AUO_M181_PANEL_ID		0x09
+#define MIPI_DSI_IVO_M181_PANEL_ID		0x0A
 
 #endif /* _INTEL_DSI_H */

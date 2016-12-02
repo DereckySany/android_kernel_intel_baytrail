@@ -267,10 +267,17 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	lvds_lfp_data = find_section(bdb, BDB_LVDS_LFP_DATA);
 	if (!lvds_lfp_data)
 		return;
-
-	dev_priv->vbt.drrs_min_vrefresh = (unsigned int)
+#if defined (CONFIG_TF103C) || defined(CONFIG_TF103CE)
+	dev_priv->vbt.drrs_min_vrefresh = 0;
+#else
+	/* Assign drrs min vrefresh by DPS panel type */
+	if (dev_priv->vbt.drrs_type == STATIC_DRRS_SUPPORT) {
+		dev_priv->vbt.drrs_min_vrefresh = 0;
+	} else {
+		dev_priv->vbt.drrs_min_vrefresh = (unsigned int)
 			lvds_lfp_data->seamless_drrs_min_vrefresh[panel_type];
-
+	}
+#endif
 	lvds_lfp_data_ptrs = find_section(bdb, BDB_LVDS_LFP_DATA_PTRS);
 	if (!lvds_lfp_data_ptrs)
 		return;

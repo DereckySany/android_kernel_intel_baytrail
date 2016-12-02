@@ -345,7 +345,6 @@ static int mfd_emmc_probe_slot(struct sdhci_pci_slot *slot)
 		slot->host->mmc->caps |= MMC_CAP_1_8V_DDR;
 		slot->host->mmc->caps2 |= MMC_CAP2_INIT_CARD_SYNC |
 					MMC_CAP2_CACHE_CTRL;
-		slot->host->mmc->caps2 |= MMC_CAP2_PACKED_CMD;
 		slot->host->quirks2 |= SDHCI_QUIRK2_V2_0_SUPPORT_DDR50;
 		/*
 		 * CLV host controller has a special POWER_CTL register,
@@ -361,7 +360,6 @@ static int mfd_emmc_probe_slot(struct sdhci_pci_slot *slot)
 		slot->host->quirks2 |= SDHCI_QUIRK2_V2_0_SUPPORT_DDR50;
 		slot->host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC |
 			MMC_CAP2_RPMBPART_NOACC;
-		slot->host->mmc->caps2 |= MMC_CAP2_PACKED_CMD;
 		/*
 		 * CLV host controller has a special POWER_CTL register,
 		 * which can do HW reset, so it doesn't need to operate
@@ -634,6 +632,7 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 	case PCI_DEVICE_ID_INTEL_BYT_EMMC45:
 		slot->host->quirks2 |= SDHCI_QUIRK2_CARD_CD_DELAY |
 			SDHCI_QUIRK2_WAIT_FOR_IDLE | SDHCI_QUIRK2_TUNING_POLL;
+#ifndef CONFIG_MMC_DISABLE_HS200_HS400
 		if (!INTEL_MID_BOARDV3(TABLET, BYT, BLK, PRO, RVP1) &&
 			!INTEL_MID_BOARDV3(TABLET, BYT, BLK, PRO, RVP2) &&
 			!INTEL_MID_BOARDV3(TABLET, BYT, BLK, PRO, RVP3) &&
@@ -641,6 +640,7 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 			!INTEL_MID_BOARDV3(TABLET, BYT, BLK, ENG, RVP2) &&
 			!INTEL_MID_BOARDV3(TABLET, BYT, BLK, ENG, RVP3))
 			slot->host->mmc->caps2 |= MMC_CAP2_HS200_1_8V_SDR;
+#endif
 	case PCI_DEVICE_ID_INTEL_BYT_EMMC:
 		if (!INTEL_MID_BOARDV2(TABLET, BYT, BLB, PRO) &&
 				!INTEL_MID_BOARDV2(TABLET, BYT, BLB, ENG))
@@ -828,12 +828,10 @@ static int intel_mrfl_mmc_probe_slot(struct sdhci_pci_slot *slot)
 		slot->host->mmc->caps2 |= MMC_CAP2_POLL_R1B_BUSY |
 					MMC_CAP2_INIT_CARD_SYNC |
 					MMC_CAP2_CACHE_CTRL;
-
-		/* Enable Packed Command */
-		slot->host->mmc->caps2 |= MMC_CAP2_PACKED_CMD;
-
 		if (slot->chip->pdev->revision == 0x1) { /* B0 stepping */
+#ifndef CONFIG_MMC_DISABLE_HS200_HS400
 			slot->host->mmc->caps2 |= MMC_CAP2_HS200_1_8V_SDR;
+#endif
 			/* WA for async abort silicon issue */
 			slot->host->quirks2 |= SDHCI_QUIRK2_CARD_CD_DELAY |
 					SDHCI_QUIRK2_WAIT_FOR_IDLE |
@@ -912,6 +910,7 @@ static int intel_moor_emmc_probe_slot(struct sdhci_pci_slot *slot)
 				MMC_CAP2_INIT_CARD_SYNC |
 				MMC_CAP2_CACHE_CTRL;
 
+#ifndef CONFIG_MMC_DISABLE_HS200_HS400
 	/* Enable HS200 and HS400 */
 	slot->host->mmc->caps2 |= MMC_CAP2_HS200_1_8V_SDR |
 				MMC_CAP2_HS200_DIS;
@@ -919,6 +918,7 @@ static int intel_moor_emmc_probe_slot(struct sdhci_pci_slot *slot)
 	if (slot->chip->pdev->revision == 0x1) { /* B0 stepping */
 		slot->host->mmc->caps2 |= MMC_CAP2_HS400_1_8V_DDR;
 	}
+#endif
 
 	/* Enable Packed Command */
 	slot->host->mmc->caps2 |= MMC_CAP2_PACKED_CMD;

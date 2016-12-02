@@ -105,6 +105,50 @@ config SND_BYT_MACHINE
           Say Y if you have such a device
           If unsure select "N".
 
+config SND_TF103C_MACHINE
+        tristate "SOC Machine Audio driver for TF103C in Intel Baytrail MID platform"
+        depends on X86
+        select SND_SOC_RT5640_1
+        select SND_SST_PLATFORM
+        select SND_SST_MACHINE
+        select SND_INTEL_SST
+        select SND_HWDEP
+        default n
+        help
+          This adds support for ASoC machine driver for TF103C in Intel(R) MID Baytrail platform
+          used as alsa device in audio substem in Intel(R) MID devices
+          Say Y if you have such a device
+          If unsure select "N".
+
+config SND_TF303CL_MACHINE
+        tristate "SOC Machine Audio driver for TF303CL in Intel Baytrail MID platform"
+        depends on X86
+        select SND_SOC_RT5640_2
+        select SND_SST_PLATFORM
+        select SND_SST_MACHINE
+        select SND_INTEL_SST
+        select SND_HWDEP
+        default n
+        help
+          This adds support for ASoC machine driver for TF303CL in Intel(R) MID Baytrail platform
+          used as alsa device in audio substem in Intel(R) MID devices
+          Say Y if you have such a device
+          If unsure select "N".
+
+config SND_BYT_RT5640_MACHINE
+	tristate "SOC Machine Audio driver for BYT_RT5640 in Intel Baytrail MID platform"
+	depends on X86
+	select SND_SOC_RT5640
+	select SND_SST_PLATFORM
+	select SND_SST_MACHINE
+	select SND_INTEL_SST
+	select SND_HWDEP
+	default n
+	help
+	  This adds support for ASoC machine driver for BYT_RT5640 in Intel(R) MID Baytrail platform
+          used as alsa device in audio substem in Intel(R) MID devices
+          Say Y if you have such a device
+          If unsure select "N".
 
 config SND_CHT_MACHINE
 	tristate "SOC Machine Audio driver for Intel Cherrytrail MID platform"

@@ -34,12 +34,14 @@ static struct ush_hsic_pdata *get_hsic_platform_data(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_INTEL_BYT_USH:
 		if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, 8PR0) ||
 			INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, 8PR1)) {
+#if defined(CONFIG_TF303CL)
 			/* support HSIC */
 			pdata->has_modem = 1;
 			pdata->enabled = 1;
 			pdata->hsic_port_num = 5;
 			pdata->has_hsic = 1;
 			pdata->has_ssic = 0;
+#endif
 		}
 
 		if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, 8PR0))

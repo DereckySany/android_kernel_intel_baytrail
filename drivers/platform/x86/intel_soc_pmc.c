@@ -850,11 +850,13 @@ static int pmc_suspend_enter(suspend_state_t state)
 
 	last_s0i3_residency = pmc_register_read(STATE_S0I3);
 	trace_printk("s3_entry\n");
+	printk("%s: soc s3 entry\n", __func__);
 
 	__monitor((void *)&temp, 0, 0);
 	smp_mb();
 	__mwait(BYT_S3_HINT, 1);
 
+	printk("%s: soc s3 exit\n", __func__);
 	trace_printk("s3_exit\n");
 
 	if (platform_is(INTEL_ATOM_CHT))
@@ -864,6 +866,7 @@ static int pmc_suspend_enter(suspend_state_t state)
 	if (s3_res) {
 		pmc->state_residency[STATE_S3] += s3_res;
 		pmc->s3_count += 1;
+		printk("%s: s3_count : %d\n", __func__, pmc->s3_count);
 	}
 
 	return 0;

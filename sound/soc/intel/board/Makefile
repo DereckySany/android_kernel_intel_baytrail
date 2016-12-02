@@ -45,7 +45,23 @@ obj-$(CONFIG_SND_MOOR_MACHINE) += snd-merr-dpcm-wm8958.o snd-moor-dpcm-florida.o
 obj-$(CONFIG_SND_MOOR_MACHINE) += snd-merr-saltbay-wm8958.o
 
 # Baytrail board
+snd-byt-bl-rt5642-1-objs := byt_bl_rt5642_tf103c.o
+snd-byt-bl-rt5642-2-objs := byt_bl_rt5642_tf303cl.o
 snd-byt-bl-rt5642-objs := byt_bl_rt5642.o
 snd-byt-cr-aic3100-objs := byt_cr_aic3100.o
 obj-$(CONFIG_SND_BYT_MACHINE) += snd-byt-bl-rt5642.o snd-byt-cr-aic3100.o
 
+# TF103C
+obj-$(CONFIG_SND_TF103C_MACHINE) += snd-byt-bl-rt5642-1.o
+
+# TF303CL
+obj-$(CONFIG_SND_TF303CL_MACHINE) += snd-byt-bl-rt5642-2.o
+
+# BYT_RT5640
+obj-$(CONFIG_SND_BYT_RT5640_MACHINE) += snd-byt-bl-rt5642.o
+
+ifneq ($(wildcard $(srctree)/sound/soc/intel/board/$(TARGET_PRODUCT)), )
+	EXTRA_CFLAGS += -I$(srctree)/sound/soc/intel/board/$(TARGET_PRODUCT)
+else
+	EXTRA_CFLAGS += -I$(srctree)/sound/soc/intel/board/default
+endif

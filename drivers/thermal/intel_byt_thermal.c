@@ -1086,8 +1086,29 @@ static struct thermal_zone_device_ops tzd_emul_ops = {
 	.set_emul_temp = store_emul_temp,
 };
 
+//[Rock-20141014+ATD for ThermalCheck]>>
+static struct thermal_zone_device *tzd_0;
+static struct thermal_zone_device *tzd_1;
+static struct thermal_zone_device *tzd_2;
+static struct thermal_zone_device *tzd_3;
+static int check_all_thermal_sensors(struct thermal_zone_device *tzd, unsigned long *temp)
+{
+	if(tzd_0 && tzd_1 && tzd_2 && tzd_3 ){
+		// check for 4 sensor drivers (skin1, systherm1, skin0, PMICDIE ) of thermistors.
+		if(show_temp(tzd_0,temp) >= 0 && show_temp(tzd_1,temp) >= 0 && show_temp(tzd_2,temp) >= 0 && show_temp(tzd_3,temp) >= 0)
+			return 1;
+		else
+			return 0;
+	}
+	else return -EINVAL;
+}
+//[Rock-20141014+ATD for ThermalCheck]<<
+
 static struct thermal_zone_device_ops tzd_ops = {
 	.get_temp = show_temp,
+//[Rock-20141014+ATD for ThermalCheck]>>
+	.check_thermal = check_all_thermal_sensors,
+//[Rock-20141014+ATD for ThermalCheck]<<
 	.get_trip_type = show_trip_type,
 	.get_trip_temp = show_trip_temp,
 	.set_trip_temp = store_trip_temp,
@@ -1197,6 +1218,12 @@ static int byt_thermal_probe(struct platform_device *pdev)
 				tdata->sensors[i].name, ret);
 			goto exit_reg;
 		}
+		//[Rock-20141014+ATD for ThermalCheck]>>
+		if(i==0) tzd_0 = tdata->tzd[i];
+		if(i==1) tzd_1 = tdata->tzd[i];
+		if(i==2) tzd_2 = tdata->tzd[i];
+		if(i==3) tzd_3 = tdata->tzd[i];
+		//[Rock-20141014+ATD for ThermalCheck]>>
 	}
 
 	INIT_WORK(&tdata->thermal_work, thermal_work_func);

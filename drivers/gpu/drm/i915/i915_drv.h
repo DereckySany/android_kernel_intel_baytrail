@@ -1367,6 +1367,9 @@ struct i915_plane_stat {
 	bool sprite_c;
 	bool sprite_d;
 };
+#define DL_PRIMARY_MASK 0x000000ff
+#define DL_SPRITEA_MASK 0x0000ff00
+#define DL_SPRITEB_MASK 0x00ff0000
 
 typedef struct drm_i915_private {
 	struct drm_device *dev;
@@ -1422,6 +1425,7 @@ typedef struct drm_i915_private {
 	u32 irq_mask;
 	u32 hotplugstat;
 	u32 pfit_pipe;
+	struct regulator *v3p3sx_reg;
 	bool s0ixstat;
 	bool audio_suspended;
 	bool late_resume;
@@ -1432,6 +1436,7 @@ typedef struct drm_i915_private {
 	bool clockbend;
 	bool unplug;
 	bool maxfifo_enabled;
+	bool is_tiled;
 	bool atomic_update;
 	bool pri_update;
 	bool wait_vbl;
@@ -1511,6 +1516,9 @@ typedef struct drm_i915_private {
 		struct task_struct *task;
 		u32 signal;
 		u32 blc_adjustment;
+#if defined(CONFIG_TF103CE) || defined(CONFIG_TF303CL)
+                u32 pre_backlight_level;
+#endif
 		bool enabled;
 		bool state;
 		bool feature_control;
@@ -2169,6 +2177,10 @@ extern bool i915_prefault_disable __read_mostly;
 extern int i915_enable_kernel_batch_copy __read_mostly;
 extern int i915_enable_cmd_parser __read_mostly;
 extern int i915_drrs_interval __read_mostly;
+#if defined(CONFIG_TF103CE) || defined(CONFIG_TF303CL)
+extern int hdmi_connect_state;
+extern int i915_pre_emp_vswing_setting __read_mostly;
+#endif
 
 extern int i915_suspend(struct drm_device *dev, pm_message_t state);
 extern int i915_resume(struct drm_device *dev);

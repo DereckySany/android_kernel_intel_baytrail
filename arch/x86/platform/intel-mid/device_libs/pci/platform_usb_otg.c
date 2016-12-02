@@ -152,6 +152,12 @@ static struct intel_dwc_otg_pdata *get_otg_platform_data(struct pci_dev *pdev)
 		return &dwc_otg_pdata;
 	case PCI_DEVICE_ID_INTEL_BYT_OTG:
 		/* FIXME: Hardcode now, but need to use ACPI table for GPIO */
+		dwc_otg_pdata.charger_detect_enable = 1;
+#if defined(CONFIG_TF303CL)
+		dwc_otg_pdata.gpio_id = 156;
+#else
+		dwc_otg_pdata.gpio_id = 152;
+#endif
 		if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, RVP3) ||
 			INTEL_MID_BOARD(3, TABLET, BYT, BLK, ENG, RVP3)) {
 			dwc_otg_pdata.gpio_cs = 156;
@@ -178,7 +184,7 @@ static struct intel_dwc_otg_pdata *get_otg_platform_data(struct pci_dev *pdev)
 #if defined(CONFIG_MRD7) || defined(CONFIG_MRD8)
 			dwc_otg_pdata.gpio_id = 148;
 #else
-			dwc_otg_pdata.gpio_id = 156;
+			//dwc_otg_pdata.gpio_id = 156;
 #endif
 			dwc_otg_pdata.sdp_charging = 1;
 			dwc_otg_pdata.charging_compliance =

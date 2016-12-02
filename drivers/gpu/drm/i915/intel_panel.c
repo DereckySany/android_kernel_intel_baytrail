@@ -34,7 +34,9 @@
 #include "intel_drv.h"
 #include "linux/mfd/intel_mid_pmic.h"
 #include <linux/pwm.h>
+#ifdef CONFIG_BACKLIGHT_LP855X
 #include <linux/platform_data/lp855x.h>
+#endif
 #include <asm/spid.h>
 
 #define PCI_LBPC 0xf4 /* legacy/combination backlight modes */
@@ -552,6 +554,9 @@ void intel_panel_actually_set_backlight(struct drm_device *dev, u32 level)
 	I915_WRITE(BLC_PWM_CTL, tmp | level);
 }
 
+#if defined(CONFIG_ME176C) || defined(CONFIG_ME181C)
+static int bl_prev_level = 0;
+#endif
 void intel_panel_actually_set_mipi_backlight(struct drm_device *dev, u32 level)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -565,6 +570,13 @@ void intel_panel_actually_set_mipi_backlight(struct drm_device *dev, u32 level)
 		lpio_bl_update(0, LPIO_PWM_CTRL);
 	} else
 		intel_mid_pmic_writeb(0x4E, level);
+
+	#if defined(CONFIG_ME176C) || defined(CONFIG_ME181C)
+	if( level > (bl_prev_level + 20) || level < (bl_prev_level - 20)  || level == 0 || bl_prev_level == 0){
+            DRM_INFO("[DISP] brightness level = %d\n", level);
+            bl_prev_level = level;
+        }
+	#endif
 #else
 	DRM_ERROR("Non PMIC MIPI Backlight control is not supported yet\n");
 #endif
@@ -663,7 +675,7 @@ void intel_panel_disable_backlight(struct drm_device *dev)
 
 	spin_unlock_irqrestore(&dev_priv->backlight.lock, flags);
 }
-#ifdef CONFIG_CRYSTAL_COVE
+#if defined(CONFIG_CRYSTAL_COVE) && defined(CONFIG_BACKLIGHT_LP855X)
 static void scheduled_led_chip_programming(struct work_struct *work)
 {
 	lp855x_ext_write_byte(LP8556_CFG9,
@@ -721,7 +733,7 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum transcoder cpu_transcoder =
 		intel_pipe_to_cpu_transcoder(dev_priv, pipe);
-	unsigned long flags = 0;
+	unsigned long flags;
 	uint32_t pwm_base;
 
 	if (IS_VALLEYVIEW(dev) && dev_priv->is_mipi) {
@@ -749,14 +761,31 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 			vlv_gpio_nc_write(dev_priv, 0x40E0, 0x2000CC00);
 			vlv_gpio_nc_write(dev_priv, 0x40E8, 0x00000005);
 			udelay(500);
-
+#ifdef CONFIG_BACKLIGHT_LP855X
 			if (lpdata)
 				schedule_delayed_work(&dev_priv->bkl_delay_enable_work,
 						msecs_to_jiffies(30));
+#endif
 
 		} else {
+#if defined(CONFIG_TF103C) || defined(CONFIG_TF103CE) || defined(CONFIG_ME176C) || defined(CONFIG_ME181C)
+			intel_mid_pmic_writeb(0x4B, 0x80);
+#else
 			intel_mid_pmic_writeb(0x4B, 0xFF);
+#endif
 			intel_mid_pmic_writeb(0x51, 0x01);
+
+#ifdef CONFIG_BACKLIGHT_LP855X
+			/* Control Backlight Slope programming for LP8556 IC*/
+			if (lpdata && (spid.hardware_id == BYT_TABLET_BLK_8PR1)) {
+				mdelay(2);
+				if (lp855x_ext_write_byte(LP8556_CFG3, LP8556_MODE_SL_50MS_FL_HV_PWM_12BIT))
+					DRM_ERROR("Backlight slope programming failed\n");
+				else
+					DRM_INFO("Backlight slope programming success\n");
+				mdelay(2);
+			}
+#endif
 		}
 #else
 		DRM_ERROR("Backlight not supported yet\n");
@@ -835,7 +864,7 @@ static void intel_panel_init_backlight(struct drm_device *dev)
 	dev_priv->backlight.level = intel_panel_get_backlight(dev);
 	dev_priv->backlight.enabled = dev_priv->backlight.level != 0;
 
-#ifdef CONFIG_CRYSTAL_COVE
+#if defined(CONFIG_CRYSTAL_COVE) && defined(CONFIG_BACKLIGHT_LP855X)
 	if (BYT_CR_CONFIG)
 		INIT_DELAYED_WORK(&dev_priv->bkl_delay_enable_work,
 				scheduled_led_chip_programming);

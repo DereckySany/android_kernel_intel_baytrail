@@ -635,6 +635,63 @@ static struct attribute *default_attrs[] = {
 struct kobject *cpufreq_global_kobject;
 EXPORT_SYMBOL(cpufreq_global_kobject);
 
+#ifdef CONFIG_ASUS_CPUD
+static unsigned int platform_maximum_freq = ~0;
+static ssize_t show_platform_max_freq(struct kobject *kobj,
+				 struct attribute *attr, char *buf)
+{
+	unsigned int max_freq = 0;
+	unsigned int freq;
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		freq = cpufreq_quick_get_max(cpu);
+		if (freq > max_freq)
+			max_freq = freq;
+	}
+
+	return sprintf(buf, "%u\n", max_freq);
+}
+
+static ssize_t store_platform_max_freq(struct kobject *kobj,
+	struct attribute *attr, const char *buf, size_t count)
+{
+	unsigned int max_freq;
+	ssize_t ret;
+	int cpu=0; // in byt, we just set policy to 1 CPU, and other CPU's policy can auto set.
+	unsigned int retvalue = -EINVAL;
+	struct cpufreq_policy new_policy;
+	struct cpufreq_policy *policy;
+
+	ret = sscanf(buf, "%u", &max_freq);
+	if (ret != 1)
+		return -EINVAL;
+
+	//for_each_online_cpu(cpu) {
+		//unsigned int ret = -EINVAL;
+		//struct cpufreq_policy new_policy;
+		//struct cpufreq_policy *policy;
+
+		retvalue = cpufreq_get_policy(&new_policy, cpu);
+		if (retvalue)
+			return -EINVAL;
+
+		policy = cpufreq_cpu_get(cpu);
+		if (max_freq >= policy->min) {
+			new_policy.max = max_freq;
+			__cpufreq_set_policy(policy, &new_policy);
+			policy->user_policy.max = max_freq;
+		}
+		cpufreq_cpu_put(policy);
+	//}
+
+	platform_maximum_freq = max_freq;
+
+	return count;
+}
+define_one_global_rw(platform_max_freq);
+#endif // CONFIG_ASUS_CPUD
+
 #define to_policy(k) container_of(k, struct cpufreq_policy, kobj)
 #define to_attr(a) container_of(a, struct freq_attr, attr)
 
@@ -789,6 +846,10 @@ static void cpufreq_init_policy(struct cpufreq_policy *policy)
 	memcpy(&new_policy, policy, sizeof(struct cpufreq_policy));
 	/* assure that the starting sequence is run in __cpufreq_set_policy */
 	policy->governor = NULL;
+
+#ifdef CONFIG_ASUS_CPUD
+	pr_info("add_dev_interface() for CPU %u: %u - %u kHz\n", policy->cpu, policy->min, policy->max);
+#endif //CONFIG_ASUS_CPUD
 
 	/* set default policy */
 	ret = __cpufreq_set_policy(policy, &new_policy);
@@ -1010,6 +1071,27 @@ static int __cpufreq_add_dev(struct device *dev, struct subsys_interface *sif,
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
 	module_put(cpufreq_driver->owner);
 	pr_debug("initialization complete\n");
+
+#ifdef CONFIG_ASUS_CPUD
+	/* Now update the platform max freq */
+	{
+		unsigned int ret;
+		struct cpufreq_policy	new_policy;
+		struct cpufreq_policy	*policy;
+		ret = cpufreq_get_policy(&new_policy, cpu);
+		if (ret)
+			return 0;
+
+		policy = cpufreq_cpu_get(cpu);
+		if (platform_maximum_freq &&
+			platform_maximum_freq < policy->max) {
+			new_policy.max = platform_maximum_freq;
+			__cpufreq_set_policy(policy, &new_policy);
+			policy->user_policy.max = platform_maximum_freq;
+		}
+		cpufreq_cpu_put(policy);
+	}
+#endif //CONFIG_ASUS_CPUD
 
 	return 0;
 
@@ -1875,6 +1957,10 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 	/* clamp the new policy to PM QoS limits */
 	policy->min = max(pmin, qmin);
 
+#ifdef CONFIG_ASUS_CPUD
+	pr_info("__cpufreq_set_policy() for CPU %u: %u - %u kHz\n", policy->cpu, policy->min, policy->max);
+#endif //CONFIG_ASUS_CPUD
+
 	memcpy(&policy->cpuinfo, &data->cpuinfo,
 				sizeof(struct cpufreq_cpuinfo));
 
@@ -2003,8 +2089,13 @@ int cpufreq_update_policy(unsigned int cpu)
 
 	/* BIOS might change freq behind our back
 	  -> ask driver for current freq and notify governors about a change */
-	if (cpufreq_driver->get) {
+	if (cpufreq_driver->get && !cpufreq_driver->setpolicy) {
 		policy.cur = cpufreq_driver->get(cpu);
+		if (WARN_ON(!policy.cur)) {
+			ret = -EIO;
+			goto unlock;
+		}
+
 		if (!data->cur) {
 			pr_debug("Driver did not initialize current freq");
 			data->cur = policy.cur;
@@ -2017,6 +2108,7 @@ int cpufreq_update_policy(unsigned int cpu)
 
 	ret = __cpufreq_set_policy(data, &policy);
 
+unlock:
 	unlock_policy_rwsem_write(cpu);
 
 fail:
@@ -2191,6 +2283,7 @@ EXPORT_SYMBOL_GPL(cpufreq_unregister_driver);
 static int __init cpufreq_core_init(void)
 {
 	int cpu, rc;
+	int ret = 0;
 
 	if (cpufreq_disabled())
 		return -ENODEV;
@@ -2202,6 +2295,13 @@ static int __init cpufreq_core_init(void)
 
 	cpufreq_global_kobject = kobject_create_and_add("cpufreq", &cpu_subsys.dev_root->kobj);
 	BUG_ON(!cpufreq_global_kobject);
+
+#ifdef CONFIG_ASUS_CPUD
+	ret = sysfs_create_file(cpufreq_global_kobject,
+					&platform_max_freq.attr);
+	BUG_ON(ret);
+#endif //CONFIG_ASUS_CPUD
+
 	register_syscore_ops(&cpufreq_syscore_ops);
 
 	rc = pm_qos_add_notifier(PM_QOS_CPU_FREQ_MIN,

@@ -68,10 +68,13 @@
 #include <linux/kthread.h>
 #include <linux/version.h>
 #include <linux/wakelock.h>
+#include <linux/notifier.h>
 
 #include "otg.h"
 
 #define VERSION "2.10a"
+
+int usb_id = 1;
 
 struct dwc3_otg_hw_ops *dwc3_otg_pdata;
 struct dwc_device_par *platform_par;
@@ -82,6 +85,86 @@ static const char driver_name[] = "dwc3_otg";
 static struct dwc_otg2 *the_transceiver;
 static void dwc_otg_remove(struct pci_dev *pdev);
 
+enum power_supply_charger_cable_type usb_cable_status = POWER_SUPPLY_CHARGER_TYPE_NONE;
+static ATOMIC_NOTIFIER_HEAD(cable_status_notifier_list);
+
+static const char *charger_string(enum power_supply_charger_cable_type charger)
+{
+	switch (charger) {
+	case POWER_SUPPLY_CHARGER_TYPE_NONE:
+		return "POWER_SUPPLY_CHARGER_TYPE_NONE";
+	case POWER_SUPPLY_CHARGER_TYPE_USB_SDP:
+		return "POWER_SUPPLY_CHARGER_TYPE_USB_SDP";
+	case POWER_SUPPLY_CHARGER_TYPE_USB_DCP:
+		return "POWER_SUPPLY_CHARGER_TYPE_USB_DCP";
+	case POWER_SUPPLY_CHARGER_TYPE_USB_CDP:
+		return "POWER_SUPPLY_CHARGER_TYPE_USB_CDP";
+	case POWER_SUPPLY_CHARGER_TYPE_USB_ACA:
+		return "POWER_SUPPLY_CHARGER_TYPE_USB_ACA";
+	case POWER_SUPPLY_CHARGER_TYPE_AC:
+		return "POWER_SUPPLY_CHARGER_TYPE_AC";
+	case POWER_SUPPLY_CHARGER_TYPE_ACA_DOCK:
+		return "POWER_SUPPLY_CHARGER_TYPE_ACA_DOCK";
+	case POWER_SUPPLY_CHARGER_TYPE_ACA_A:
+		return "POWER_SUPPLY_CHARGER_TYPE_ACA_A";
+	case POWER_SUPPLY_CHARGER_TYPE_ACA_B:
+		return "POWER_SUPPLY_CHARGER_TYPE_ACA_B";
+	case POWER_SUPPLY_CHARGER_TYPE_ACA_C:
+		return "POWER_SUPPLY_CHARGER_TYPE_ACA_C";
+	case POWER_SUPPLY_CHARGER_TYPE_SE1:
+		return "POWER_SUPPLY_CHARGER_TYPE_SE1";
+	case POWER_SUPPLY_CHARGER_TYPE_MHL:
+		return "POWER_SUPPLY_CHARGER_TYPE_MHL";
+	case POWER_SUPPLY_CHARGER_TYPE_B_DEVICE:
+		return "POWER_SUPPLY_CHARGER_TYPE_B_DEVICE";
+	case POWER_SUPPLY_CHARGER_TYPE_USB_OTG_CONNECTED:
+		return "POWER_SUPPLY_CHARGER_TYPE_USB_OTG_CONNECTED";
+	case POWER_SUPPLY_CHARGER_TYPE_USB_OTG_DISCONNECTED:
+		return "POWER_SUPPLY_CHARGER_TYPE_USB_OTG_DISCONNECTED";
+	default:
+		return "POWER_SUPPLY_CHARGER_TYPE_UNDEFINED";
+	}
+}
+
+/**
+  *	cable_status_register_client - register a client notifier
+  *	@nb: notifier block to callback on events
+  */
+int cable_status_register_client(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&cable_status_notifier_list, nb);
+}
+EXPORT_SYMBOL(cable_status_register_client);
+
+/**
+  *	cable_status_unregister_client - unregister a client notifier
+  *	@nb: notifier block to callback on events
+  */
+int cable_status_unregister_client(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&cable_status_notifier_list, nb);
+}
+EXPORT_SYMBOL(cable_status_unregister_client);
+
+/**
+  *	cable_status_notifier_call_chain - notify clients of cable_status_events
+  *
+  */
+int cable_status_notifier_call_chain(enum power_supply_charger_cable_type status, void *v)
+{
+	int ret = 0;
+	printk(KERN_INFO "%s %s +++\n", __func__, charger_string(status));
+	ret = atomic_notifier_call_chain(&cable_status_notifier_list, status, v);
+	printk(KERN_INFO "%s ret %d ---\n", __func__, ret);
+	return ret;
+}
+
+unsigned int query_cable_status(void)
+{
+	printk(KERN_INFO "%s %s\n", __func__, charger_string(usb_cable_status));
+	return usb_cable_status;
+}
+EXPORT_SYMBOL(query_cable_status);
 
 static inline struct dwc_otg2 *xceiv_to_dwc_otg2(struct usb_otg *x)
 {
@@ -477,6 +560,14 @@ static enum dwc_otg_state do_charger_detection(struct dwc_otg2 *otg)
 	unsigned long flags, ma = 0;
 
 	charger = get_charger_type(otg);
+	if (usb_id == 0) {
+		printk(KERN_INFO "USB OTG Cable Connected\n");
+	}
+	else {
+		usb_cable_status = charger;
+		cable_status_notifier_call_chain(usb_cable_status, otg);
+	}
+
 	switch (charger) {
 	case POWER_SUPPLY_CHARGER_TYPE_ACA_A:
 	case POWER_SUPPLY_CHARGER_TYPE_ACA_B:
@@ -546,6 +637,22 @@ static enum dwc_otg_state do_charger_detection(struct dwc_otg2 *otg)
 	return state;
 }
 
+int enable_5v_support_usb_otg(struct dwc_otg2 *otg)
+{
+	usb_cable_status = POWER_SUPPLY_CHARGER_TYPE_USB_OTG_CONNECTED;
+	cable_status_notifier_call_chain(usb_cable_status, otg);
+	return 0;
+}
+EXPORT_SYMBOL(enable_5v_support_usb_otg);
+
+int disable_5v_support_usb_otg(struct dwc_otg2 *otg)
+{
+	usb_cable_status = POWER_SUPPLY_CHARGER_TYPE_USB_OTG_DISCONNECTED;
+	cable_status_notifier_call_chain(usb_cable_status, otg);
+	return 0;
+}
+EXPORT_SYMBOL(disable_5v_support_usb_otg);
+
 static enum dwc_otg_state do_connector_id_status(struct dwc_otg2 *otg)
 {
 	int ret, id;
@@ -556,6 +663,21 @@ static enum dwc_otg_state do_connector_id_status(struct dwc_otg2 *otg)
 	otg_dbg(otg, "\n");
 	spin_lock_irqsave(&otg->lock, flags);
 	otg->charging_cap.chrg_type = POWER_SUPPLY_CHARGER_TYPE_NONE;
+
+	if (usb_cable_status == POWER_SUPPLY_CHARGER_TYPE_USB_OTG_CONNECTED) {
+		if (usb_id == 1)
+			printk(KERN_INFO "USB OTG Cable Disconnected\n");
+		else {
+			printk(KERN_INFO "USB OTG occur current limit\n");
+			disable_5v_support_usb_otg(otg);
+			enable_5v_support_usb_otg(otg);
+		}
+	}
+	else {
+		usb_cable_status = otg->charging_cap.chrg_type;
+		cable_status_notifier_call_chain(usb_cable_status, otg);
+	}
+
 	otg->charging_cap.ma = 0;
 	otg->charging_cap.chrg_evt = POWER_SUPPLY_CHARGER_EVENT_DISCONNECT;
 	spin_unlock_irqrestore(&otg->lock, flags);

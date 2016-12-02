@@ -574,6 +574,25 @@ static struct hsu_port_cfg hsu_port_cfgs[][hsu_port_max] = {
 			.hw_resume = intel_mid_hsu_resume,
 			.hw_context_save = 1,
 		},
+#ifdef BT_UART1_WORKAROUND
+		[hsu_port1] = {
+			.type = bt_port,
+			.hw_ip = hsu_dw,
+			.index = 1,
+			.name = HSU_BT_PORT,
+			.idle = 100,
+			.hw_reset = intel_mid_hsu_reset,
+			.set_clk = intel_mid_hsu_set_clk,
+			.hw_ctrl_cts = 1,
+			.hw_init = intel_mid_hsu_init,
+			/* Trust FW has set it correctly */
+			.hw_set_alt = NULL,
+			.hw_set_rts = intel_mid_hsu_rts,
+			.hw_suspend = intel_mid_hsu_suspend,
+			.hw_resume = intel_mid_hsu_resume,
+			.hw_context_save = 1,
+		},
+#else
 		[hsu_port1] = {
 			.type = gps_port,
 			.hw_ip = hsu_dw,
@@ -593,6 +612,7 @@ static struct hsu_port_cfg hsu_port_cfgs[][hsu_port_max] = {
 			.hw_resume = intel_mid_hsu_resume,
 			.hw_context_save = 1,
 		},
+#endif
 	},
 	[hsu_chv] = {
 		[hsu_port0] = {

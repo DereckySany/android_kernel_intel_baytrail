@@ -233,10 +233,18 @@ config SND_SOC_LM49453
 config SND_SOC_CS42L52
 	tristate
 
+config SND_SOC_RT5640_2
+        tristate
+        select SND_HWDEP
+config SND_SOC_RT5640_1
+        tristate
+	select SND_HWDEP
 config SND_SOC_RT5640
 	tristate
+	select SND_HWDEP
 config SND_SOC_RT5642
 	tristate
+	select SND_HWDEP
 config SND_SOC_RT5672
 	tristate
 config SND_SOC_CS42L73
