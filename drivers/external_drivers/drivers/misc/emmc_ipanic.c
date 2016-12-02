@@ -452,8 +452,6 @@ static void emmc_panic_notify_add(void)
 	if (!ctx->ipanic_proc_entry[PROC_HEADER_INDEX])
 		pr_err("%s: failed creating proc file\n", __func__);
 	else {
-		proc_set_size(ctx->ipanic_proc_entry[PROC_HEADER_INDEX],
-			      ctx->hdr.log_size);
 		proc_entry_created = 1;
 		pr_info("%s: proc entry created: %s\n", __func__,
 			ctx->ipanic_proc_entry_name[PROC_HEADER_INDEX]);
@@ -513,8 +511,6 @@ static void emmc_panic_notify_add(void)
 			pr_err("%s: failed creating proc file\n",
 				__func__);
 		else {
-			proc_set_size(ctx->ipanic_proc_entry[idx_proc],
-				      ctx->curr.log_length[idx_log]);
 			proc_entry_created = 1;
 			pr_info("%s: proc entry created: %s\n",
 				__func__,

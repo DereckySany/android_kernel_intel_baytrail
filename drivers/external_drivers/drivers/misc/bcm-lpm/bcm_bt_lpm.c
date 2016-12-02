@@ -55,6 +55,13 @@ static bool wake_uart_enabled;
 static bool int_handler_enabled;
 #endif
 
+/* For RF Test - RX Mode*/
+#include <linux/kernel.h>      /* doing kernel work */
+#include <linux/proc_fs.h>     /* Necessary because use the proc fs */
+#include <asm/uaccess.h>       /* for copy_from_user */
+
+#define PROCFS_MAX_SIZE        1024
+#define PROCFS_NAME            "host_wake"
 
 static void activate_irq_handler(void);
 
@@ -140,7 +147,7 @@ static int bcm_bt_lpm_acpi_probe(struct platform_device *pdev)
 
 	bt_lpm.int_host_wake = gpio_to_irq(bt_lpm.gpio_host_wake);
 
-	pr_debug("%s: gpio_wake %d, gpio_host_wake %d, int_host_wake %d\n",
+	printk(KERN_ALERT"%s: gpio_wake %d, gpio_host_wake %d, int_host_wake %d\n",
 							__func__,
 							bt_lpm.gpio_wake,
 							bt_lpm.gpio_host_wake,
@@ -148,6 +155,17 @@ static int bcm_bt_lpm_acpi_probe(struct platform_device *pdev)
 #endif
 
 	handle = DEVICE_ACPI_HANDLE(&pdev->dev);
+
+#ifdef FOR_2076
+	printk(KERN_ALERT"pre %s: gpio_enable_bt %d\n",__func__,bt_lpm.gpio_enable_bt);
+	bt_lpm.gpio_enable_bt =139;
+	printk(KERN_ALERT"%s: gpio_enable_bt %d\n",__func__,bt_lpm.gpio_enable_bt);
+	printk(KERN_ALERT"%s: gpio_wake %d, gpio_host_wake %d, int_host_wake %d\n",
+							__func__,
+							bt_lpm.gpio_wake,
+							bt_lpm.gpio_host_wake,
+							bt_lpm.int_host_wake);
+#endif
 
 	if (ACPI_FAILURE(acpi_evaluate_integer(handle, "UART", NULL, &port))) {
 		dev_err(&pdev->dev, "Error evaluating UART port number\n");
@@ -160,8 +178,13 @@ static int bcm_bt_lpm_acpi_probe(struct platform_device *pdev)
 		 port = 0;
 	}
 
+#ifdef FOR_2076
+	/* hardcode for ME176C & ME181C */
+	port = 1;
+#endif
 	bt_lpm.port = port;
 	pr_debug("%s: UART port %d\n", __func__, bt_lpm.port);
+	printk(KERN_ALERT"%s: UART port %d\n", __func__, bt_lpm.port);
 
 	return 0;
 }
@@ -237,7 +260,6 @@ static enum hrtimer_restart enter_lpm(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-
 static void update_host_wake_locked(int host_wake)
 {
 	if (host_wake == bt_lpm.host_wake)
@@ -305,6 +327,44 @@ static void activate_irq_handler(void)
 	}
 }
 
+/* For RF Test - RX Mode*/
+int bt_host_wake_write_file(struct file *file, const char *buffer, unsigned long count,void *data){
+
+	char s;
+
+	if( copy_from_user(&s,buffer,1) != 0 ){
+		printk(KERN_ERR "Copy from user Error\n");
+		return -ENOMEM;
+	}
+
+	printk(KERN_ERR "%s %c\n",__func__,s);
+
+	switch(s){
+		case '0':
+			update_host_wake_locked(0);
+			break;
+		case '1':
+			update_host_wake_locked(1);
+			break;
+		default:
+			printk(KERN_ERR "%s error parameter %c\n",__func__,s);
+	}
+
+	return count;
+}
+
+int bt_host_wake_read_file(struct file *file, const char *buffer, unsigned long count,void *data){
+
+	int host_wake;
+	host_wake = gpio_get_value(bt_lpm.gpio_host_wake);
+	printk("%s: host_wake = %s\n", __func__, host_wake ? "High":"Low");
+	return 1;
+}
+
+static const struct file_operations bt_read_write_header_fops = {
+	.read = bt_host_wake_read_file,
+	.write = bt_host_wake_write_file
+};
 
 static void bcm_bt_lpm_wake_peer(struct device *dev)
 {
@@ -329,6 +389,11 @@ static void bcm_bt_lpm_wake_peer(struct device *dev)
 		HRTIMER_MODE_REL);
 
 }
+
+/**
+*  This structure hold information about the /proc file
+**/
+static struct proc_dir_entry *Bt_Wake_File;
 
 static int bcm_bt_lpm_init(struct platform_device *pdev)
 {
@@ -369,7 +434,16 @@ static int bcm_bt_lpm_init(struct platform_device *pdev)
 	wake_lock_init(&bt_lpm.wake_lock, WAKE_LOCK_SUSPEND,
 			 bt_lpm.wake_lock_name);
 
+	/* Create Bt_Wake_File */
 	bcm_bt_lpm_wake_peer(tty_dev);
+
+	printk("Bluetooth_Rf_Test - RX-Mode");
+
+	Bt_Wake_File = proc_create("host_wake", S_IFREG | S_IRUGO, NULL, &bt_read_write_header_fops);
+	if (Bt_Wake_File == NULL) {
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 #endif
@@ -481,6 +555,7 @@ static int bcm43xx_bluetooth_probe(struct platform_device *pdev)
 		goto err_gpio_enable_dir;
 	}
 #else
+        gpio_free(bt_lpm.gpio_enable_bt);
 	ret = gpio_request(bt_lpm.gpio_enable_bt, pdev->name);
 	if (ret < 0) {
 		pr_err("%s: Unable to request gpio %d\n", __func__,
@@ -497,6 +572,7 @@ static int bcm43xx_bluetooth_probe(struct platform_device *pdev)
 #endif
 
 #ifdef LPM_ON
+        gpio_free(bt_lpm.gpio_host_wake);
 	ret = gpio_request(bt_lpm.gpio_host_wake, pdev->name);
 	if (ret < 0) {
 		pr_err("%s: Unable to request gpio %d\n",
@@ -510,7 +586,7 @@ static int bcm43xx_bluetooth_probe(struct platform_device *pdev)
 							bt_lpm.gpio_host_wake);
 		goto err_gpio_host_wake_dir;
 	}
-
+        gpio_free(bt_lpm.gpio_wake);
 	ret = gpio_request(bt_lpm.gpio_wake, pdev->name);
 	if (ret < 0) {
 		pr_err("%s: Unable to request gpio %d\n", __func__,
@@ -591,6 +667,10 @@ err_data_probe:
 
 static int bcm43xx_bluetooth_remove(struct platform_device *pdev)
 {
+#ifdef FOR_2076
+	printk(KERN_ALERT"%s: gpio_enable_bt\n",__func__);
+	gpio_set_value(bt_lpm.gpio_enable_bt, 0);
+#endif
 	rfkill_unregister(bt_rfkill);
 	rfkill_destroy(bt_rfkill);
 
@@ -641,19 +721,36 @@ int bcm43xx_bluetooth_resume(struct platform_device *pdev)
 
 #ifdef CONFIG_ACPI
 static struct acpi_device_id bcm_id_table[] = {
+#ifdef ME176CE_WORKAROUND
+        /* ACPI IDs here */
+        { "BCM2E3A", 0 },
+        { }
+#else
 	/* ACPI IDs here */
 	{ "BCM2E1A", 0 },
 	{ "BCM2E3A", 0 },
 	{ "OBDA8723", 0},
 	{ }
+#endif
 };
 
 MODULE_DEVICE_TABLE(acpi, bcm_id_table);
 #endif
 
+#ifdef FOR_2076
+static void bcm43xx_bluetooth_shutdown(struct platform_device *pdev)
+{
+	printk(KERN_ALERT"%s: gpio_enable_bt\n",__func__);
+	gpio_set_value(139, 0);
+}
+#endif
+
 static struct platform_driver bcm43xx_bluetooth_platform_driver = {
 	.probe = bcm43xx_bluetooth_probe,
 	.remove = bcm43xx_bluetooth_remove,
+#ifdef FOR_2076
+	.shutdown = bcm43xx_bluetooth_shutdown,
+#endif
 #ifdef LPM_ON
 	.suspend = bcm43xx_bluetooth_suspend,
 	.resume = bcm43xx_bluetooth_resume,

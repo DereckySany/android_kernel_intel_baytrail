@@ -1537,7 +1537,18 @@ static void __i2c_dw_enable(struct dw_i2c_dev *dev, bool enable)
 		if (i2c_dw_is_enabled(dev) == enable)
 			return;
 
+#ifdef CONFIG_TF303CL
+               if (dev->controller->bus_num == 6)
+               {
+                   usleep_range(25, 25);
+	       }
+	       else
+	       {
+                   usleep_range(25, 250);
+		}
+#else
 		usleep_range(25, 250);
+#endif
 	} while (timeout-- > 0);
 
 	dev_warn(dev->dev, "timeout in %sabling adapter\n",

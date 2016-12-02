@@ -38,6 +38,8 @@
 #include "mdm_util.h"
 #include "mcd_mdm.h"
 
+#include "asustek_boardinfo.h"
+
 #define MDM_BOOT_DEVNAME	CONFIG_MDM_CTRL_DEV_NAME
 
 #define MDM_MODEM_READY_DELAY	60	/* Modem readiness wait duration (sec) */
@@ -961,6 +963,12 @@ static struct platform_driver mcd_driver = {
 
 static int __init mdm_ctrl_module_init(void)
 {
+    int project_id = asustek_boardinfo_get(FUN_PROJECT_ID);
+    if (project_id != TF303CL) {
+        pr_info(DRVNAME ": Project has no modem (0x%x)\n", project_id);
+        return 0;
+    }
+
 	return platform_driver_register(&mcd_driver);
 }
 
